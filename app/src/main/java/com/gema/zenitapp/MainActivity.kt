@@ -28,11 +28,23 @@ class MainActivity : ComponentActivity() {
                     composable("login") {
                         LoginScreen(
                             onNavigateToSignUp = { navController.navigate("signup") },
-                            onLoginSuccess = { navController.navigate("home") }
+                            onLoginSuccess = { navController.navigate("inicio") }
                         )
                     }
-                    composable("home") {
-                        InicioScreen()
+                    composable("inicio") {
+                        InicioScreen(onNavigateToPrevision = {
+                            navController.navigate("prevision")},
+                                onNavigateToMovimientos = {
+                            navController.navigate("movimientos")}
+                        )
+                    }
+
+                    composable("prevision") {
+                        PrevisionScreen(onBack = { navController.popBackStack() })
+                    }
+
+                    composable("movimientos") {
+                        MovimientosScreen(onBack = { navController.popBackStack() })
                     }
                 }
             }
@@ -56,10 +68,26 @@ fun SignUpPreview() {
     }
 }
 
-@Preview(showBackground = true, showSystemUi = true)
+//@Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun InicioScreenPreview() {
     ZenitAppTheme {
-        InicioScreen()
+        InicioScreen(onNavigateToPrevision = {}, onNavigateToMovimientos = {})
+    }
+}
+
+//@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun PrevisionScreen() {
+    ZenitAppTheme {
+        PrevisionScreen(onBack = {})
+    }
+}
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun MovimientosScreen() {
+    ZenitAppTheme {
+        MovimientosScreen(onBack = {})
     }
 }
