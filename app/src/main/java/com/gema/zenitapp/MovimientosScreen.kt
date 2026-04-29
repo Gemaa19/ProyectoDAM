@@ -1,6 +1,5 @@
 package com.gema.zenitapp
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -19,7 +18,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.gema.zenitapp.ui.theme.ZenitGreen
-
 import com.gema.zenitapp.ui.theme.ZenitLightGreen
 
 @OptIn(ExperimentalMaterial3Api::class)

@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.*
@@ -19,7 +18,13 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import com.gema.zenitapp.api.RetrofitClient
+import com.gema.zenitapp.models.LoginUsuario
+import android.util.Log
 import com.gema.zenitapp.ui.theme.BackgroundWhite
 import com.gema.zenitapp.ui.theme.InputGray
 import com.gema.zenitapp.ui.theme.ZenitGreen
@@ -30,6 +35,10 @@ import com.gema.zenitapp.ui.theme.ZenitLightGreen
 fun LoginScreen(onNavigateToSignUp: () -> Unit, onLoginSuccess: () -> Unit) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    var isLoading by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -131,7 +140,47 @@ fun LoginScreen(onNavigateToSignUp: () -> Unit, onLoginSuccess: () -> Unit) {
 
             // BOTÓN LOGIN (Corregido para Material 3)
             Button(
-                onClick = { onLoginSuccess() },
+                onClick = {
+                    if (email.isEmpty() || password.isEmpty()) {
+                        Toast.makeText(context, "Rellena todos los campos", Toast.LENGTH_SHORT).show()
+                        return@Button
+                }
+                    isLoading = true
+                    scope.launch {
+                        try {
+                            // Creamos el objeto con los datos del formulario
+                            val datos = LoginUsuario(email, password)
+
+                            // Llamada al servidor a través de Retrofit
+                            val respuesta = RetrofitClient.instancia.login(datos)
+
+                            if (respuesta.isSuccessful) {
+                                val auth = respuesta.body()
+                                Log.d("API_SUCCESS", "Login correcto. Usuario: ${auth?.username}")
+
+                                // TODO: Aquí guardaremos el token en SharedPreferences más adelante
+                                Toast.makeText(context, "¡Bienvenido, ${auth?.username}!", Toast.LENGTH_SHORT).show()
+
+                                // Acción para navegar a la siguiente pantalla
+                                onLoginSuccess()
+                            } else {
+                                // Error de credenciales (401 Unauthorized, etc.)
+                                Log.e("API_ERROR", "Código de error: ${respuesta.code()}")
+                                Toast.makeText(context, "Email o contraseña incorrectos", Toast.LENGTH_SHORT).show()
+                            }
+                        } catch (e: Exception) {
+                            // Error de red (Servidor apagado, IP incorrecta, sin internet)
+                            Log.e("NETWORK_ERROR", "Mensaje: ${e.message}")
+                            Toast.makeText(context, "No se pudo conectar con el servidor", Toast.LENGTH_SHORT).show()
+                        } finally {
+                            // Ocultamos el cargando al terminar
+                            isLoading = false
+                        }
+                    }
+                },
+                // Deshabilitamos el botón mientras la petición está en curso
+                enabled = !isLoading,
+
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(55.dp),
@@ -141,7 +190,16 @@ fun LoginScreen(onNavigateToSignUp: () -> Unit, onLoginSuccess: () -> Unit) {
                     contentColor = Color.White
                 )
             ) {
+                if (isLoading) {
+                    // Muestra un círculo de carga si está esperando al servidor
+                    CircularProgressIndicator(
+                        color = Color.White,
+                        modifier = Modifier.size(24.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else {
                 Text(text = "Login", fontSize = 18.sp)
+                }
             }
 
             Spacer(modifier = Modifier.height(20.dp))

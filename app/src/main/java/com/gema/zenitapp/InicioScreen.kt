@@ -36,20 +36,87 @@ fun InicioScreen(onNavigateToPrevision: () -> Unit, onNavigateToMovimientos: () 
     val sheetState = rememberModalBottomSheetState()
     var mostrarSheet by rememberSaveable() { mutableStateOf(false) }
     val categorias = listOf(
-        CategoriaPresupuesto("Comida & bebida", "Quedan 200€", "200€", "400€", 0.5f, Icons.Default.Restaurant, Color(0xFF00BFA5)),
-        CategoriaPresupuesto("Transporte", "¡Presupuesto bajo!", "90€", "100€", 0.9f, Icons.Default.DirectionsCar, Color(0xFF00897B)),
-        CategoriaPresupuesto("Ropa", "Sin gastos", "0€", "150€", 0.0f, Icons.Default.Checkroom, Color(0xFF26A69A)),
-        CategoriaPresupuesto("Ocio", "Disfrutando", "50€", "200€", 0.25f, Icons.Default.ConfirmationNumber, Color(0xFF4DB6AC)),
-        CategoriaPresupuesto("Hogar", "Todo al día", "300€", "300€", 1.0f, Icons.Default.Home, Color(0xFF00796B)),
-        CategoriaPresupuesto("Salud", "Seguro médico", "60€", "60€", 1.0f, Icons.Default.MedicalServices, Color(0xFF80CBC4)),
-        CategoriaPresupuesto("Gimnasio", "Cuota mensual", "45€", "45€", 1.0f, Icons.Default.FitnessCenter, Color(0xFF4DB6AC)),
-        CategoriaPresupuesto("Suscripciones", "Netflix y Spotify", "25€", "30€", 0.8f, Icons.Default.Subscriptions, Color(0xFF26A69A))
+        CategoriaPresupuesto(
+            "Comida & bebida",
+            "Quedan 200€",
+            "200€",
+            "400€",
+            0.5f,
+            Icons.Default.Restaurant,
+            Color(0xFF00BFA5)
+        ),
+        CategoriaPresupuesto(
+            "Transporte",
+            "¡Presupuesto bajo!",
+            "90€",
+            "100€",
+            0.9f,
+            Icons.Default.DirectionsCar,
+            Color(0xFF00897B)
+        ),
+        CategoriaPresupuesto(
+            "Ropa",
+            "Sin gastos",
+            "0€",
+            "150€",
+            0.0f,
+            Icons.Default.Checkroom,
+            Color(0xFF26A69A)
+        ),
+        CategoriaPresupuesto(
+            "Ocio",
+            "Disfrutando",
+            "50€",
+            "200€",
+            0.25f,
+            Icons.Default.ConfirmationNumber,
+            Color(0xFF4DB6AC)
+        ),
+        CategoriaPresupuesto(
+            "Hogar",
+            "Todo al día",
+            "300€",
+            "300€",
+            1.0f,
+            Icons.Default.Home,
+            Color(0xFF00796B)
+        ),
+        CategoriaPresupuesto(
+            "Salud",
+            "Seguro médico",
+            "60€",
+            "60€",
+            1.0f,
+            Icons.Default.MedicalServices,
+            Color(0xFF80CBC4)
+        ),
+        CategoriaPresupuesto(
+            "Gimnasio",
+            "Cuota mensual",
+            "45€",
+            "45€",
+            1.0f,
+            Icons.Default.FitnessCenter,
+            Color(0xFF4DB6AC)
+        ),
+        CategoriaPresupuesto(
+            "Suscripciones",
+            "Netflix y Spotify",
+            "25€",
+            "30€",
+            0.8f,
+            Icons.Default.Subscriptions,
+            Color(0xFF26A69A)
+        )
     )
 
     Scaffold(
-        bottomBar = { BarraNavegacionInferior(
-            onMetasClick = onNavigateToPrevision,
-            onMovimientosClick = onNavigateToMovimientos) },
+        bottomBar = {
+            BarraNavegacionInferior(
+                onMetasClick = onNavigateToPrevision,
+                onMovimientosClick = onNavigateToMovimientos
+            )
+        },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { mostrarSheet = true }, // Al pulsar, abre la pantalla de arriba
@@ -57,63 +124,68 @@ fun InicioScreen(onNavigateToPrevision: () -> Unit, onNavigateToMovimientos: () 
                 contentColor = Color.White,
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Row(Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    Modifier.padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Icon(Icons.Default.Add, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
                     Text("Categoría")
                 }
             }
         }
-        ) { paddingValues ->
-        LazyColumn(
+    ) { paddingValues ->
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(ZenitLightGreen.copy(alpha = 0.3f))
                 .padding(paddingValues)
+                .background(ZenitLightGreen.copy(alpha = 0.3f))
         ) {
-            item {
-                CabeceraPrincipal()
-            }
-
-            item {
-                SeccionSaldo()
-            }
-
-            item {
-                TarjetasResumidas()
-            }
-
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Previsiones Mensuales", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                    Text("Ver todo", color = Color.Gray, fontSize = 14.sp)
+            CabeceraPrincipal()
+            LazyColumn(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                item {
+                    SeccionSaldo()
                 }
-            }
 
-            items(categorias) { cat ->
-                SeccionPrevisiones(cat)
-            }
+                item {
+                    TarjetasResumidas()
+                }
 
-            item { Spacer(Modifier.height(80.dp)) }
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Previsiones Mensuales",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp
+                        )
+                        Text("Ver todo", color = Color.Gray, fontSize = 14.sp)
+                    }
+                }
+
+                items(categorias) { cat ->
+                    SeccionPrevisiones(cat)
+                }
+
+                item { Spacer(Modifier.height(80.dp)) }
+            }
         }
-
         if (mostrarSheet) {
             ModalBottomSheet(
                 onDismissRequest = { mostrarSheet = false },
                 sheetState = sheetState,
                 containerColor = Color.White
             ) {
-                // Aquí va el contenido de tu nueva pantalla para añadir
                 ContenidoAnadirCategoria(onClose = { mostrarSheet = false })
             }
         }
     }
 }
-
 @Composable
 fun CabeceraPrincipal() {
     Row(
