@@ -176,3 +176,13 @@ fun ItemCategoriaEditable(cat: CategoriaPresupuesto) {
         }
     }
 }
+// Plantilla de datos necesaria para la lista de previsiones
+data class CategoriaPresupuesto(
+    val nombre: String,
+    val info: String,
+    val gastado: String,
+    val total: String,
+    val progreso: Float, // de 0.0 a 1.0
+    val icono: androidx.compose.ui.graphics.vector.ImageVector,
+    val color: Color
+)

@@ -31,83 +31,16 @@ import com.gema.zenitapp.ui.theme.ZenitLightGreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun InicioScreen(onNavigateToPrevision: () -> Unit, onNavigateToMovimientos: () -> Unit) {
-    val scope = rememberCoroutineScope()
-    val sheetState = rememberModalBottomSheetState()
-    var mostrarSheet by rememberSaveable() { mutableStateOf(false) }
-    val categorias = listOf(
-        CategoriaPresupuesto(
-            "Comida & bebida",
-            "Quedan 200€",
-            "200€",
-            "400€",
-            0.5f,
-            Icons.Default.Restaurant,
-            Color(0xFF00BFA5)
-        ),
-        CategoriaPresupuesto(
-            "Transporte",
-            "¡Presupuesto bajo!",
-            "90€",
-            "100€",
-            0.9f,
-            Icons.Default.DirectionsCar,
-            Color(0xFF00897B)
-        ),
-        CategoriaPresupuesto(
-            "Ropa",
-            "Sin gastos",
-            "0€",
-            "150€",
-            0.0f,
-            Icons.Default.Checkroom,
-            Color(0xFF26A69A)
-        ),
-        CategoriaPresupuesto(
-            "Ocio",
-            "Disfrutando",
-            "50€",
-            "200€",
-            0.25f,
-            Icons.Default.ConfirmationNumber,
-            Color(0xFF4DB6AC)
-        ),
-        CategoriaPresupuesto(
-            "Hogar",
-            "Todo al día",
-            "300€",
-            "300€",
-            1.0f,
-            Icons.Default.Home,
-            Color(0xFF00796B)
-        ),
-        CategoriaPresupuesto(
-            "Salud",
-            "Seguro médico",
-            "60€",
-            "60€",
-            1.0f,
-            Icons.Default.MedicalServices,
-            Color(0xFF80CBC4)
-        ),
-        CategoriaPresupuesto(
-            "Gimnasio",
-            "Cuota mensual",
-            "45€",
-            "45€",
-            1.0f,
-            Icons.Default.FitnessCenter,
-            Color(0xFF4DB6AC)
-        ),
-        CategoriaPresupuesto(
-            "Suscripciones",
-            "Netflix y Spotify",
-            "25€",
-            "30€",
-            0.8f,
-            Icons.Default.Subscriptions,
-            Color(0xFF26A69A)
-        )
+fun InicioScreen(onNavigateToPrevision: () -> Unit, onNavigateToMovimientos: () -> Unit, onMenuClick: () -> Unit) {
+
+    // Datos de prueba adaptados a tu clase original
+    val movimientosHoy = listOf(
+        Movimiento("Starbucks", "Café y snacks", "-5.50€", false, Icons.Default.Restaurant, ZenitGreen),
+        Movimiento("Nómina", "Salario Mensual", "+2000€", true, Icons.Default.Payments, ZenitGreen)
+    )
+
+    val movimientosAyer = listOf(
+        Movimiento("Netflix", "Entretenimiento", "-15.99€", false, Icons.Default.Tv, ZenitGreen)
     )
 
     Scaffold(
@@ -116,32 +49,16 @@ fun InicioScreen(onNavigateToPrevision: () -> Unit, onNavigateToMovimientos: () 
                 onMetasClick = onNavigateToPrevision,
                 onMovimientosClick = onNavigateToMovimientos
             )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { mostrarSheet = true }, // Al pulsar, abre la pantalla de arriba
-                containerColor = ZenitGreen,
-                contentColor = Color.White,
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Row(
-                    Modifier.padding(horizontal = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Categoría")
-                }
-            }
         }
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(ZenitLightGreen.copy(alpha = 0.3f))
+                .background(Color.White) // Fondo general blanco
         ) {
-            CabeceraPrincipal()
+            CabeceraPrincipal(onMenuClick = onMenuClick)
+
             LazyColumn(
                 modifier = Modifier.fillMaxSize()
             ) {
@@ -154,69 +71,82 @@ fun InicioScreen(onNavigateToPrevision: () -> Unit, onNavigateToMovimientos: () 
                 }
 
                 item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            "Previsiones Mensuales",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp
-                        )
-                        Text("Ver todo", color = Color.Gray, fontSize = 14.sp)
-                    }
+                    Text(
+                        text = "Gastos del mes",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        modifier = Modifier.padding(start = 24.dp, top = 24.dp, bottom = 8.dp)
+                    )
                 }
 
-                items(categorias) { cat ->
-                    SeccionPrevisiones(cat)
+                // Sección HOY
+                item {
+                    FilaFecha("Hoy", "16 Abril")
+                }
+                items(movimientosHoy) { mov ->
+                    ItemGasto(mov)
                 }
 
-                item { Spacer(Modifier.height(80.dp)) }
-            }
-        }
-        if (mostrarSheet) {
-            ModalBottomSheet(
-                onDismissRequest = { mostrarSheet = false },
-                sheetState = sheetState,
-                containerColor = Color.White
-            ) {
-                ContenidoAnadirCategoria(onClose = { mostrarSheet = false })
+                // Sección AYER
+                item {
+                    Spacer(Modifier.height(8.dp))
+                    FilaFecha("Ayer", "15 Abril")
+                }
+                items(movimientosAyer) { mov ->
+                    ItemGasto(mov)
+                }
+
+                item { Spacer(Modifier.height(30.dp)) }
             }
         }
     }
 }
 @Composable
-fun CabeceraPrincipal() {
-    Row(
-        modifier = Modifier.fillMaxWidth().background(ZenitLightGreen).padding(16.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+fun CabeceraPrincipal(onMenuClick: () -> Unit) {
+    Box( // <--- CAMBIADO DE Row A Box
+        modifier = Modifier.fillMaxWidth().background(ZenitLightGreen).padding(16.dp)
     ) {
-        Icon(Icons.Default.Menu, contentDescription = null, modifier = Modifier.size(30.dp))
-        Text("ZENIT", fontWeight = FontWeight.Bold, fontSize = 28.sp, letterSpacing = 4.sp)
-        Row {
-            Icon(Icons.Default.NotificationsNone, contentDescription = null, modifier = Modifier.size(30.dp))
-            Spacer(Modifier.width(8.dp))
-            Icon(Icons.Default.AccountCircle, contentDescription = null, modifier = Modifier.size(30.dp))
-        }
+        // Icono hamburguesa clicable
+        Icon(
+            imageVector = Icons.Default.Menu,
+            contentDescription = "Menú lateral",
+            modifier = Modifier
+                .size(30.dp)
+                .align(Alignment.CenterStart) // <--- Pegado a la izquierda
+                .clickable { onMenuClick() }
+        )
+        Text(
+            text = "ZENIT",
+            fontWeight = FontWeight.ExtraBold,
+            fontSize = 32.sp,
+            letterSpacing = 4.sp,
+            color = Color(0xFF0D5140),
+            modifier = Modifier.align(Alignment.Center) // <--- Perfectamente centrado
+        )
     }
 }
-
 @Composable
 fun SeccionSaldo() {
     Column(
-        modifier = Modifier.fillMaxWidth().padding(24.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 24.dp, bottom = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("DINERO LIBRE REAL", color = Color.Gray, fontSize = 14.sp)
-        Text("1250.00€", fontSize = 36.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF004D40))
+        Text("DINERO LIBRE REAL", color = Color.Gray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        Text("8512,46€", fontSize = 40.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF0D5140))
         Surface(
             color = ZenitLightGreen,
             shape = RoundedCornerShape(20.dp),
-            modifier = Modifier.padding(top = 8.dp)
+            modifier = Modifier.padding(top = 4.dp)
         ) {
-            Text("+5.2% vs mes anterior", modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp), color = Color(0xFF00796B), fontSize = 12.sp)
+            Text(
+                text = "+5.2% vs mes anterior",
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                color = Color(0xFF0D5140),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }
@@ -224,13 +154,15 @@ fun SeccionSaldo() {
 @Composable
 fun TarjetasResumidas() {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         val modifier = Modifier.weight(1f)
-        TarjetaResumenPequeña(modifier, "Ingresos", "+1500€", Icons.Default.Payments, Color.Blue)
-        TarjetaResumenPequeña(modifier, "Gastos", "-800€", Icons.Default.CreditCard, Color.Red)
-        TarjetaResumenPequeña(modifier, "Saldo", "700€", Icons.Default.AccountBalance, Color.Magenta)
+        TarjetaResumenPequeña(modifier, "Ingresos", "+1500€", Icons.Default.Payments, Color(0xFF4285F4))
+        TarjetaResumenPequeña(modifier, "Gastos", "-800€", Icons.Default.CreditCard, Color(0xFFE91E63))
+        TarjetaResumenPequeña(modifier, "Saldo mensual", "700€", Icons.Default.AccountBalance, Color(0xFF9C27B0))
     }
 }
 
@@ -238,214 +170,132 @@ fun TarjetasResumidas() {
 fun TarjetaResumenPequeña(modifier: Modifier, title: String, amount: String, icon: androidx.compose.ui.graphics.vector.ImageVector, iconColor: Color) {
     Card(
         modifier = modifier.height(110.dp),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFFFFFFF)
-        ),
-        elevation = CardDefaults.cardElevation(4.dp)
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.Center) {
-            Icon(icon, null, tint = iconColor, modifier = Modifier.size(20.dp))
-            Text(title, color = Color.Gray, fontSize = 12.sp)
-            Text(amount, fontWeight = FontWeight.Bold, color = Color(0xFF00BFA5))
-        }
-    }
-}
-
-@Composable
-fun SeccionPrevisiones(cat: CategoriaPresupuesto) {
-    Card(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(40.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFFFFFFF)
-        ),
-        elevation = CardDefaults.cardElevation(2.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().height(80.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier.fillMaxSize().padding(12.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Box(
-                modifier = Modifier.fillMaxHeight().width(60.dp).background(cat.color),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(cat.icono, null, tint = Color.White)
-            }
-            Column(Modifier.padding(12.dp).weight(1f)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Column {
-                        Text(cat.nombre, fontWeight = FontWeight.Bold)
-                        Text(cat.info, fontSize = 12.sp, color = Color.Gray)
-                    }
-                    Text("${cat.gastado}/${cat.total}", fontWeight = FontWeight.Bold)
-                }
-                LinearProgressIndicator(
-                    progress = cat.progreso,
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp).height(6.dp),
-                    color = Color.Magenta,
-                    trackColor = Color.LightGray
-                )
-            }
+            Icon(icon, null, tint = iconColor, modifier = Modifier.size(24.dp))
+            Spacer(Modifier.height(4.dp))
+            Text(title, color = Color.Gray, fontSize = 11.sp, maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            Spacer(Modifier.height(4.dp))
+            Text(amount, fontWeight = FontWeight.Bold, color = ZenitGreen, fontSize = 14.sp)
         }
     }
 }
 
 @Composable
-fun AddCategoryButton() {
-    OutlinedButton(
-        onClick = { },
-        modifier = Modifier.fillMaxWidth().padding(32.dp),
-        shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(2.dp, ZenitGreen),
+fun FilaFecha(dia: String, fecha: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Icon(Icons.Default.AddCircleOutline, null, tint = Color.Gray)
-        Spacer(Modifier.width(8.dp))
-        Text("Añadir categoría", color = Color.Gray)
+        Text(dia, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        Text(fecha, color = Color.Gray, fontSize = 14.sp)
     }
 }
-
 @Composable
-fun BarraNavegacionInferior(onMetasClick: () -> Unit, onMovimientosClick: () -> Unit) {
-    NavigationBar(containerColor = Color.White) {
-        NavigationBarItem(
-            icon = { Icon(Icons.Default.Home, null) },
-            label = { Text("Inicio") },
-            selected = true,
-            onClick = {}
-        )
-        NavigationBarItem(
-            icon = { Icon(Icons.Default.List, null) },
-            label = { Text("Movimientos") },
-            selected = false,
-            onClick = { onMovimientosClick() }
-        )
-        NavigationBarItem(
-            icon = { Icon(Icons.Default.PieChart, null) },
-            label = { Text("Reportes") },
-            selected = false,
-            onClick = {}
-        )
-        // ESTE ES EL BOTÓN DEL CERDITO
-        NavigationBarItem(
-            icon = { Icon(Icons.Default.Savings, null) },
-            label = { Text("Metas") },
-            selected = false,
-            onClick = { onMetasClick() }
-        )
-    }
-}
-
-@Composable
-fun ContenidoAnadirCategoria(onClose: () -> Unit) {
-    var nombre by remember { mutableStateOf("") }
-    var presupuesto by remember { mutableStateOf("") }
-    var iconoSeleccionado by remember { mutableStateOf(Icons.Default.Category) }
-    val opcionesIconos = listOf(
-        Icons.Default.Restaurant,
-        Icons.Default.DirectionsCar,
-        Icons.Default.ShoppingBag,
-        Icons.Default.LocalMovies,
-        Icons.Default.FitnessCenter,
-        Icons.Default.Home,
-        Icons.Default.MedicalServices,
-        Icons.Default.School,
-        Icons.Default.Flight
-    )
-    Column(
+fun ItemGasto(movimiento: Movimiento) {
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(24.dp)
-            .navigationBarsPadding(), // Evita que el teclado tape todo
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(horizontal = 24.dp, vertical = 6.dp)
+            .height(70.dp),
+        shape = RoundedCornerShape(35.dp), // Forma de píldora
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
     ) {
-        Text("Nueva Categoría", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF004D40))
-        Spacer(Modifier.height(24.dp))
-
-        Text(
-            "Selecciona un icono ilustrativo",
-            modifier = Modifier.fillMaxWidth(),
-            fontSize = 14.sp,
-            color = Color.Gray
-        )
-
-        Spacer(Modifier.height(8.dp))
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier.fillMaxSize(),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            opcionesIconos.take(5).forEach { icono ->
-                val estaSeleccionado = iconoSeleccionado == icono
-                Box(
-                    modifier = Modifier
-                        .size(45.dp)
-                        .background(
-                            if (estaSeleccionado) ZenitGreen else Color(0xFFF1F1F5),
-                            shape = RoundedCornerShape(12.dp)
-                        )
-                        .clickable { iconoSeleccionado = icono },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = icono,
-                        contentDescription = null,
-                        tint = if (estaSeleccionado) Color.White else Color.Gray,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
+            // Bloque de color izquierdo con el icono
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .width(70.dp)
+                    .background(movimiento.color), // Cambiado a .color
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(movimiento.icono, contentDescription = null, tint = Color.White, modifier = Modifier.size(28.dp))
             }
+
+            // Textos centrales
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(movimiento.nombre, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.Black) // Cambiado a .nombre
+                Text(movimiento.categoria, color = Color.Gray, fontSize = 13.sp) // Cambiado a .categoria
+            }
+
+            // Cantidad
+            Text(
+                text = movimiento.cantidad,
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp,
+                // Usamos tu variable esIngreso para cambiar el color del dinero
+                color = if (movimiento.esIngreso) ZenitGreen else Color.Black,
+                modifier = Modifier.padding(end = 20.dp)
+            )
         }
-
-        Spacer(Modifier.height(24.dp))
-
-        // CAMPO: NOMBRE
-        OutlinedTextField(
-            value = nombre,
-            onValueChange = { nombre = it },
-            label = { Text("Nombre de la categoría") },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            singleLine = true
-        )
-
-        Spacer(Modifier.height(16.dp))
-
-        // CAMPO: PRESUPUESTO (Solo números)
-        OutlinedTextField(
-            value = presupuesto,
-            onValueChange = { presupuesto = it },
-            label = { Text("Presupuesto total mensual (€)") },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number) // <--- TECLADO NUMÉRICO
-        )
-
-        Spacer(Modifier.height(32.dp))
-
-        // BOTÓN FINAL
-        Button(
-            onClick = { onClose() },
-            modifier = Modifier.fillMaxWidth().height(56.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = ZenitGreen),
-            shape = RoundedCornerShape(16.dp),
-            enabled = nombre.isNotEmpty() && presupuesto.isNotEmpty()
-        ) {
-            Icon(Icons.Default.Save, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
-            Text("Guardar", fontWeight = FontWeight.Bold)
-        }
-
-        Spacer(Modifier.height(20.dp))
     }
 }
+@Composable
+fun BarraNavegacionInferior(onMetasClick: () -> Unit, onMovimientosClick: () -> Unit) {
+    // Variable para controlar visualmente qué pestaña está activa
+    var pestañaSeleccionada by remember { mutableStateOf(0) }
 
-data class CategoriaPresupuesto(
-    val nombre: String,
-    val info: String,
-    val gastado: String,
-    val total: String,
-    val progreso: Float, // de 0.0 a 1.0
-    val icono: androidx.compose.ui.graphics.vector.ImageVector,
-    val color: Color
-)
+    NavigationBar(
+        containerColor = ZenitLightGreen, // Fondo verde claro como en la imagen
+        tonalElevation = 0.dp,
+        modifier = Modifier.height(90.dp) // Un poco más alto para dar respiro
+    ) {
+        val items = listOf(
+            Triple("Inicio", Icons.Default.Home, {}),
+            Triple("Movimientos", Icons.Default.Receipt, onMovimientosClick),
+            Triple("Análisis", Icons.Default.PieChart, {}),
+            Triple("Objetivos", Icons.Default.Savings, onMetasClick)
+        )
+
+        items.forEachIndexed { index, item ->
+            val seleccionado = pestañaSeleccionada == index
+
+            NavigationBarItem(
+                icon = {
+                    Box(
+                        modifier = Modifier
+                            .padding(top = 15.dp) // Espacio extra por arriba de los iconos
+                            .size(48.dp)
+                            .background(
+                                color = if (seleccionado) Color.White else ZenitGreen, // COLORES AL REVÉS
+                                shape = androidx.compose.foundation.shape.CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ){
+                        Icon(
+                            imageVector = item.second,
+                            contentDescription = item.first,
+                            tint = if (seleccionado) ZenitGreen else Color.White // ICONO AL REVÉS
+                        )
+                    }
+                },
+                label = { Text(item.first, color = Color.Gray) },
+                selected = seleccionado,
+                onClick = {
+                    pestañaSeleccionada = index
+                    item.third.invoke() // Ejecuta la navegación
+                },
+                colors = NavigationBarItemDefaults.colors(
+                    indicatorColor = Color.Transparent // ELIMINA EL FONDO GRIS DE MATERIAL 3
+                )
+            )
+        }
+    }
+}

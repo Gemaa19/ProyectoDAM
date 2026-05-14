@@ -18,24 +18,41 @@ class MainActivity : ComponentActivity() {
         setContent {
             ZenitAppTheme {
                 val navController = rememberNavController()
-                NavHost(navController = navController, startDestination = "signup") {
+
+                // 1. CAMBIO AQUÍ: startDestination ahora es "splash"
+                NavHost(navController = navController, startDestination = "splash") {
+
+                    // 2. AÑADIMOS LA PANTALLA DE CARGA
+                    composable("splash") {
+                        CargaScreen(onNavigateToLogin = {
+                            navController.navigate("login") {
+                                // Esto borra el Splash de la historia para que el botón "Atrás" no vuelva a él
+                                popUpTo("splash") { inclusive = true }
+                            }
+                        })
+                    }
 
                     composable("signup") {
                         SignUpScreen(onNavigateToLogin = {
                             navController.navigate("login")
                         })
                     }
+
                     composable("login") {
                         LoginScreen(
                             onNavigateToSignUp = { navController.navigate("signup") },
-                            onLoginSuccess = { navController.navigate("inicio") }
+                            onLoginSuccess = {
+                                // Opcional: Aquí también podrías usar popUpTo para que no vuelvan al login
+                                navController.navigate("inicio")
+                            }
                         )
                     }
+
                     composable("inicio") {
-                        InicioScreen(onNavigateToPrevision = {
-                            navController.navigate("prevision")},
-                                onNavigateToMovimientos = {
-                            navController.navigate("movimientos")}
+                        InicioScreen(
+                            onMenuClick = { navController.navigate("hamburguesa") },
+                            onNavigateToPrevision = { navController.navigate("prevision") },
+                            onNavigateToMovimientos = { navController.navigate("movimientos") }
                         )
                     }
 
@@ -45,6 +62,21 @@ class MainActivity : ComponentActivity() {
 
                     composable("movimientos") {
                         MovimientosScreen(onBack = { navController.popBackStack() })
+                    }
+
+                    composable("hamburguesa") {
+                        HamburguesaScreen(
+                            onBackClick = { navController.popBackStack() }, // Volver atrás
+                            onEditClick = { /* Lógica para editar perfil */ },
+                            onMenuOptionClick = { optionName ->
+                                // Manejar clics en el menú, ej. navegar a Categorías, cerrar sesión, etc.
+                                when (optionName) {
+                                    "Categorías" -> navController.navigate("categorias")
+                                    "Cerrar sesión" -> { /* Lógica para cerrar sesión, volver al login */ }
+                                    else -> { /* Otras opciones */ }
+                                }
+                            }
+                        )
                     }
                 }
             }
@@ -72,7 +104,25 @@ fun SignUpPreview() {
 @Composable
 fun InicioScreenPreview() {
     ZenitAppTheme {
-        InicioScreen(onNavigateToPrevision = {}, onNavigateToMovimientos = {})
+        // Añadimos el onMenuClick vacío para que no dé error
+        InicioScreen(
+            onMenuClick = {},
+            onNavigateToPrevision = {},
+            onNavigateToMovimientos = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun HamburguesaScreenPreview() {
+    ZenitAppTheme {
+        // Usamos el nombre correcto de la pantalla y sus parámetros
+        HamburguesaScreen(
+            onBackClick = {},
+            onEditClick = {},
+            onMenuOptionClick = {}
+        )
     }
 }
 
@@ -84,10 +134,18 @@ fun PrevisionScreen() {
     }
 }
 
-@Preview(showBackground = true, showSystemUi = true)
+//@Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun MovimientosScreen() {
     ZenitAppTheme {
         MovimientosScreen(onBack = {})
+    }
+}
+
+//@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun SplashScreenPreview() {
+    ZenitAppTheme {
+        CargaScreen(onNavigateToLogin = {})
     }
 }
