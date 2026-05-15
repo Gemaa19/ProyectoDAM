@@ -16,13 +16,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 import com.gema.zenitapp.ui.theme.BackgroundWhite
-import com.gema.zenitapp.ui.theme.InputGray
 import com.gema.zenitapp.ui.theme.ZenitGreen
 import com.gema.zenitapp.ui.theme.ZenitLightGreen
 
@@ -83,79 +81,51 @@ fun SignUpScreen(onNavigateToLogin: () -> Unit) {
             ) {
                 Spacer(modifier = Modifier.height(20.dp))
 
-                OutlinedTextField(
+                // CAMPO USUARIO
+                ZenitInputField(
                     value = userName,
                     onValueChange = { userName = it },
-                    placeholder = { Text("Nombre Usuario") },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(30.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = InputGray,
-                        unfocusedContainerColor = InputGray,
-                        focusedBorderColor = Color.Transparent,
-                        unfocusedBorderColor = Color.Transparent
-                    ),
-                    leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
-                    singleLine = true
+                    placeholder = "Nombre Usuario",
+                    icon = Icons.Default.Person,
+                    iconOnLeft = false
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                OutlinedTextField(
+                // CAMPO EMAIL
+                ZenitInputField(
                     value = email,
                     onValueChange = { email = it },
-                    placeholder = { Text("Email") },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(30.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = InputGray,
-                        unfocusedContainerColor = InputGray,
-                        focusedBorderColor = Color.Transparent,
-                        unfocusedBorderColor = Color.Transparent
-                    ),
-                    leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
-                    singleLine = true
+                    placeholder = "Email",
+                    icon = Icons.Default.Email,
+                    iconOnLeft = true
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                OutlinedTextField(
+                // CAMPO CONTRASEÑA
+                ZenitInputField(
                     value = password,
                     onValueChange = { password = it },
-                    placeholder = { Text("Contraseña") },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(30.dp),
-                    visualTransformation = PasswordVisualTransformation(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = InputGray,
-                        unfocusedContainerColor = InputGray,
-                        focusedBorderColor = Color.Transparent,
-                        unfocusedBorderColor = Color.Transparent
-                    ),
-                    leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
-                    singleLine = true
+                    placeholder = "Contraseña",
+                    icon = Icons.Default.Lock,
+                    iconOnLeft = true,
+                    isPassword = true
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                OutlinedTextField(
+                // CAMPO REPETIR CONTRASEÑA
+                ZenitInputField(
                     value = confirmPassword,
                     onValueChange = { confirmPassword = it },
-                    placeholder = { Text("Repetir Contraseña") },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(30.dp),
-                    visualTransformation = PasswordVisualTransformation(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = InputGray,
-                        unfocusedContainerColor = InputGray,
-                        focusedBorderColor = Color.Transparent,
-                        unfocusedBorderColor = Color.Transparent
-                    ),
-                    leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
-                    singleLine = true
+                    placeholder = "Repetir Contraseña",
+                    icon = Icons.Default.Lock,
+                    iconOnLeft = true,
+                    isPassword = true
                 )
 
-                Spacer(modifier = Modifier.height(30.dp))
+                Spacer(modifier = Modifier.height(35.dp))
 
                 Button(
                     onClick = { /* Lógica de registro */ },

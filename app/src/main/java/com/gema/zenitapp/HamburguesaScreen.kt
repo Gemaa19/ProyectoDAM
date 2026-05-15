@@ -149,7 +149,7 @@ fun MenuOptionRow(
                 Icon(
                     imageVector = option.icon,
                     contentDescription = null,
-                    tint = ZenitLightGreen, // Color del icono dentro del círculo (verde claro)
+                    tint = Color.White, // Color del icono dentro del círculo (verde claro)
                     modifier = Modifier.size(30.dp)
                 )
             }

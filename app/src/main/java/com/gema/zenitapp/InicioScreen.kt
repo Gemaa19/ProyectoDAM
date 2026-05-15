@@ -1,30 +1,22 @@
 package com.gema.zenitapp
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.gema.zenitapp.componentes.CabeceraPrincipal
+import com.gema.zenitapp.componentes.BarraNavegacionInferior
 
 import com.gema.zenitapp.ui.theme.ZenitGreen
 import com.gema.zenitapp.ui.theme.ZenitLightGreen
@@ -46,8 +38,11 @@ fun InicioScreen(onNavigateToPrevision: () -> Unit, onNavigateToMovimientos: () 
     Scaffold(
         bottomBar = {
             BarraNavegacionInferior(
-                onMetasClick = onNavigateToPrevision,
-                onMovimientosClick = onNavigateToMovimientos
+                pantallaActual = "Inicio", // Al ser igual que el nombre del item, aparecerá seleccionado
+                onInicioClick = { /* No hará nada porque ya está seleccionado */ },
+                onMovimientosClick = onNavigateToMovimientos,
+                onAnalisisClick = { /* TODO */ },
+                onObjetivosClick = onNavigateToPrevision
             )
         }
     ) { paddingValues ->
@@ -57,7 +52,10 @@ fun InicioScreen(onNavigateToPrevision: () -> Unit, onNavigateToMovimientos: () 
                 .padding(paddingValues)
                 .background(Color.White) // Fondo general blanco
         ) {
-            CabeceraPrincipal(onMenuClick = onMenuClick)
+            CabeceraPrincipal(
+                titulo = "ZENIT",
+                onMenuClick = onMenuClick
+            )
 
             LazyColumn(
                 modifier = Modifier.fillMaxSize()
@@ -101,30 +99,7 @@ fun InicioScreen(onNavigateToPrevision: () -> Unit, onNavigateToMovimientos: () 
         }
     }
 }
-@Composable
-fun CabeceraPrincipal(onMenuClick: () -> Unit) {
-    Box( // <--- CAMBIADO DE Row A Box
-        modifier = Modifier.fillMaxWidth().background(ZenitLightGreen).padding(16.dp)
-    ) {
-        // Icono hamburguesa clicable
-        Icon(
-            imageVector = Icons.Default.Menu,
-            contentDescription = "Menú lateral",
-            modifier = Modifier
-                .size(30.dp)
-                .align(Alignment.CenterStart) // <--- Pegado a la izquierda
-                .clickable { onMenuClick() }
-        )
-        Text(
-            text = "ZENIT",
-            fontWeight = FontWeight.ExtraBold,
-            fontSize = 32.sp,
-            letterSpacing = 4.sp,
-            color = Color(0xFF0D5140),
-            modifier = Modifier.align(Alignment.Center) // <--- Perfectamente centrado
-        )
-    }
-}
+
 @Composable
 fun SeccionSaldo() {
     Column(
@@ -243,58 +218,6 @@ fun ItemGasto(movimiento: Movimiento) {
                 // Usamos tu variable esIngreso para cambiar el color del dinero
                 color = if (movimiento.esIngreso) ZenitGreen else Color.Black,
                 modifier = Modifier.padding(end = 20.dp)
-            )
-        }
-    }
-}
-@Composable
-fun BarraNavegacionInferior(onMetasClick: () -> Unit, onMovimientosClick: () -> Unit) {
-    // Variable para controlar visualmente qué pestaña está activa
-    var pestañaSeleccionada by remember { mutableStateOf(0) }
-
-    NavigationBar(
-        containerColor = ZenitLightGreen, // Fondo verde claro como en la imagen
-        tonalElevation = 0.dp,
-        modifier = Modifier.height(90.dp) // Un poco más alto para dar respiro
-    ) {
-        val items = listOf(
-            Triple("Inicio", Icons.Default.Home, {}),
-            Triple("Movimientos", Icons.Default.Receipt, onMovimientosClick),
-            Triple("Análisis", Icons.Default.PieChart, {}),
-            Triple("Objetivos", Icons.Default.Savings, onMetasClick)
-        )
-
-        items.forEachIndexed { index, item ->
-            val seleccionado = pestañaSeleccionada == index
-
-            NavigationBarItem(
-                icon = {
-                    Box(
-                        modifier = Modifier
-                            .padding(top = 15.dp) // Espacio extra por arriba de los iconos
-                            .size(48.dp)
-                            .background(
-                                color = if (seleccionado) Color.White else ZenitGreen, // COLORES AL REVÉS
-                                shape = androidx.compose.foundation.shape.CircleShape
-                            ),
-                        contentAlignment = Alignment.Center
-                    ){
-                        Icon(
-                            imageVector = item.second,
-                            contentDescription = item.first,
-                            tint = if (seleccionado) ZenitGreen else Color.White // ICONO AL REVÉS
-                        )
-                    }
-                },
-                label = { Text(item.first, color = Color.Gray) },
-                selected = seleccionado,
-                onClick = {
-                    pestañaSeleccionada = index
-                    item.third.invoke() // Ejecuta la navegación
-                },
-                colors = NavigationBarItemDefaults.colors(
-                    indicatorColor = Color.Transparent // ELIMINA EL FONDO GRIS DE MATERIAL 3
-                )
             )
         }
     }

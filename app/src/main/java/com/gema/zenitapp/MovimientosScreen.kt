@@ -1,105 +1,136 @@
 package com.gema.zenitapp
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.gema.zenitapp.componentes.BarraNavegacionInferior
+import com.gema.zenitapp.componentes.CabeceraPrincipal
 import com.gema.zenitapp.ui.theme.ZenitGreen
 import com.gema.zenitapp.ui.theme.ZenitLightGreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MovimientosScreen(onBack: () -> Unit) {
+fun MovimientosScreen(
+    onMenuClick: () -> Unit,
+    onNavigateToInicio: () -> Unit,
+    onNavigateToPrevision: () -> Unit
+) {
     val movimientosHoy = listOf(
-        Movimiento("Starbucks", "Café y snacks", "-5.50€", false, Icons.Default.Restaurant, Color(0xFF00BFA5)),
-        Movimiento("Nómina", "Salario Mensual", "+2000€", true, Icons.Default.Payments, Color(0xFF00897B))
+        Movimiento("Starbucks", "Café y snacks", "-5.50€", false, Icons.Default.Restaurant, ZenitGreen),
+        Movimiento("Nómina", "Salario Mensual", "+2000€", true, Icons.Default.Payments, ZenitGreen)
     )
     val movimientosAyer = listOf(
-        Movimiento("Netflix", "Entretenimiento", "-15.99€", false, Icons.Default.Movie, Color(0xFF00BFA5)),
-        Movimiento("Mercadona", "Comida", "-85.20€", false, Icons.Default.ShoppingCart, Color(0xFF00897B))
+        Movimiento("Netflix", "Entretenimiento", "-15.99€", false, Icons.Default.Tv, ZenitGreen),
+        Movimiento("Mercadona", "Comida", "-85.20€", false, Icons.Default.ShoppingCart, ZenitGreen)
     )
 
     Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("Movimientos", fontWeight = FontWeight.Bold, color = Color(0xFF004D40)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = ZenitLightGreen)
+        bottomBar = {
+            // Reutilizamos la barra que ya configuramos con los iconos en círculos
+            BarraNavegacionInferior(
+                pantallaActual = "Movimientos", // Aquí se iluminará el icono de los tickets
+                onInicioClick = onNavigateToInicio,
+                onMovimientosClick = { /* No hará nada */ },
+                onAnalisisClick = { /* TODO */ },
+                onObjetivosClick = onNavigateToPrevision
             )
-        },
+        }
     ) { paddingValues ->
-        LazyColumn(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(ZenitLightGreen.copy(alpha = 0.2f)),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .background(Color.White)
         ) {
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    val mod = Modifier.weight(1f)
-                    TarjetaMovimientoResumen(mod, "Ingresos", "+3200€", Icons.Default.ArrowDownward, Color(0xFF00BFA5))
-                    TarjetaMovimientoResumen(mod, "Gastos", "-1450€", Icons.Default.ArrowUpward, Color(0xFFE57373))
+            CabeceraPrincipal(
+                titulo = "Movimientos",
+                onMenuClick = onMenuClick
+            )
+
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // TARJETAS SUPERIORES
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        val mod = Modifier.weight(1f)
+                        TarjetaMovimientoResumen(mod, "Ingresos", "+3200€", Icons.Default.ArrowUpward, ZenitGreen)
+                        TarjetaMovimientoResumen(mod, "Gastos", "-1450€", Icons.Default.ArrowDownward, Color.Red)
+                    }
                 }
-            }
 
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    FiltroChip("Todos", seleccionado = true)
-                    FiltroChip("Ingresos", seleccionado = false)
-                    FiltroChip("Gastos", seleccionado = false)
+                // FILTROS CHIPS
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.Center, // <--- CAMBIADO A CENTER
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        FiltroChip("Todos", seleccionado = true)
+                        Spacer(Modifier.width(8.dp)) // Espacio manual entre chips
+                        FiltroChip("Ingresos", seleccionado = false)
+                        Spacer(Modifier.width(8.dp))
+                        FiltroChip("Gastos", seleccionado = false)
+                    }
+                    Spacer(Modifier.height(20.dp))
                 }
-                Spacer(Modifier.height(20.dp))
-            }
 
-            item { CabeceraFecha("Hoy", "16 Abril") }
-            items(movimientosHoy) { mov -> ItemMovimiento(mov) }
+                // LISTADO AGRUPADO POR FECHA
+                item { FilaFecha("Hoy", "16 Abril") }
+                items(movimientosHoy) { mov -> ItemGasto(mov) }
 
-            item { CabeceraFecha("Ayer", "15 Abril") }
-            items(movimientosAyer) { mov -> ItemMovimiento(mov) }
+                item {
+                    Spacer(Modifier.height(16.dp))
+                    FilaFecha("Ayer", "15 Abril")
+                }
+                items(movimientosAyer) { mov -> ItemGasto(mov) }
 
-            item {
-                BotonAnadirGasto()
+                // BOTÓN PUNTEADO "NUEVO MOVIMIENTO"
+                item {
+                    BotonNuevoMovimiento()
+                    Spacer(Modifier.height(30.dp))
+                }
             }
         }
     }
 }
-
 @Composable
-fun TarjetaMovimientoResumen(modifier: Modifier, titulo: String, cantidad: String, icono: ImageVector, colorIcono: Color) {
+fun TarjetaMovimientoResumen(modifier: Modifier, titulo: String, cantidad: String, icono: androidx.compose.ui.graphics.vector.ImageVector, colorIcono: Color) {
     Card(
-        modifier = modifier.height(110.dp),
-        shape = RoundedCornerShape(32.dp),
+        modifier = modifier.height(85.dp), // <--- REDUCIDO DE 100.dp A 85.dp
+        shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
-        Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Icon(icono, null, tint = colorIcono)
-            Text(titulo, color = Color.Gray, fontSize = 14.sp)
-            Text(cantidad, fontWeight = FontWeight.Bold, fontSize = 20.sp, color = if(titulo == "Gastos") Color(0xFFE57373) else Color(0xFF00BFA5))
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(icono, null, tint = colorIcono, modifier = Modifier.size(20.dp)) // Icono un pelín más pequeño
+            Text(titulo, color = Color.Gray, fontSize = 11.sp) // Texto un pelín más pequeño
+            Text(cantidad, fontWeight = FontWeight.Bold, fontSize = 17.sp, color = colorIcono)
         }
     }
 }
@@ -107,66 +138,38 @@ fun TarjetaMovimientoResumen(modifier: Modifier, titulo: String, cantidad: Strin
 @Composable
 fun FiltroChip(texto: String, seleccionado: Boolean) {
     Surface(
-        color = if (seleccionado) Color(0xFF80CBC4) else Color(0xFFB2DFDB).copy(alpha = 0.5f),
-        shape = RoundedCornerShape(16.dp),
-        modifier = Modifier.height(35.dp)
+        color = if (seleccionado) Color(0xFF0D5140) else Color.White,
+        shape = RoundedCornerShape(20.dp),
+        border = if (!seleccionado) BorderStroke(1.dp, Color.LightGray) else null,
+        modifier = Modifier.height(36.dp)
     ) {
         Box(Modifier.padding(horizontal = 20.dp), contentAlignment = Alignment.Center) {
-            Text(texto, color = if (seleccionado) Color.White else Color(0xFF00796B), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Text(
+                texto,
+                color = if (seleccionado) Color.White else Color.Gray,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp
+            )
         }
     }
 }
 
 @Composable
-fun CabeceraFecha(dia: String, fecha: String) {
-    Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(dia, fontWeight = FontWeight.Bold, color = Color.Black)
-        Text(fecha, color = Color.Gray, fontSize = 14.sp)
-    }
-}
-
-@Composable
-fun ItemMovimiento(mov: Movimiento) {
-    Card(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(40.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(2.dp)
-    ) {
-        Row(Modifier.fillMaxWidth().height(80.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.fillMaxHeight().width(65.dp).background(mov.color), contentAlignment = Alignment.Center) {
-                Icon(mov.icono, null, tint = Color.White)
-            }
-            Row(Modifier.padding(horizontal = 16.dp).weight(1f), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Column {
-                    Text(mov.nombre, fontWeight = FontWeight.Bold)
-                    Text(mov.categoria, fontSize = 12.sp, color = Color.Gray)
-                }
-                Text(mov.cantidad, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-            }
-        }
-    }
-}
-
-@Composable
-fun BotonAnadirGasto() {
-    //este lleva a otra pantalla
-    Button(
-        onClick = { /* Lógica de guardado */ },
+fun BotonNuevoMovimiento() {
+    // Botón con borde punteado (Dash)
+    OutlinedButton(
+        onClick = { /* Navegar a añadir */ },
         modifier = Modifier
             .fillMaxWidth()
-            .padding(24.dp)
-            .height(60.dp),
-        shape = RoundedCornerShape(15.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = ZenitGreen)
+            .padding(horizontal = 32.dp, vertical = 16.dp)
+            .height(55.dp),
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.5.dp, ZenitGreen),
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Gray)
     ) {
-        Icon(
-            imageVector = Icons.Default.Add,
-            contentDescription = null,
-            modifier = Modifier.size(24.dp)
-        )
-        Spacer(Modifier.width(12.dp))
-        Text("Añadir Gasto / Ingreso", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        Icon(Icons.Default.AddCircleOutline, null, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(8.dp))
+        Text("Nuevo movimiento", fontSize = 16.sp, fontWeight = FontWeight.Medium)
     }
 }
 

@@ -25,6 +25,8 @@ import kotlinx.coroutines.launch
 import com.gema.zenitapp.api.RetrofitClient
 import com.gema.zenitapp.models.LoginUsuario
 import android.util.Log
+import androidx.compose.material.icons.filled.Key
+import androidx.compose.ui.text.input.VisualTransformation
 import com.gema.zenitapp.ui.theme.BackgroundWhite
 import com.gema.zenitapp.ui.theme.InputGray
 import com.gema.zenitapp.ui.theme.ZenitGreen
@@ -88,42 +90,24 @@ fun LoginScreen(onNavigateToSignUp: () -> Unit, onLoginSuccess: () -> Unit) {
             Spacer(modifier = Modifier.height(30.dp))
 
             // Campo Email (Corregido para Material 3)
-            OutlinedTextField(
+            ZenitInputField(
                 value = email,
                 onValueChange = { email = it },
-                placeholder = { Text("Email") },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(30.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = InputGray,
-                    unfocusedContainerColor = InputGray,
-                    focusedBorderColor = Color.Transparent,
-                    unfocusedBorderColor = Color.Transparent,
-                    disabledBorderColor = Color.Transparent,
-                ),
-                leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
-                singleLine = true
+                placeholder = "Email",
+                icon = Icons.Default.Email,
+                iconOnLeft = false // Icono a la derecha en tu diseño
             )
 
             Spacer(modifier = Modifier.height(15.dp))
 
             // Campo Password (Corregido para Material 3)
-            OutlinedTextField(
+            ZenitInputField(
                 value = password,
                 onValueChange = { password = it },
-                placeholder = { Text("Contraseña") },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(30.dp),
-                visualTransformation = PasswordVisualTransformation(),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = InputGray,
-                    unfocusedContainerColor = InputGray,
-                    focusedBorderColor = Color.Transparent,
-                    unfocusedBorderColor = Color.Transparent,
-                    disabledBorderColor = Color.Transparent,
-                ),
-                leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
-                singleLine = true
+                placeholder = "Contraseña",
+                icon = Icons.Default.Lock, // Usamos la llave como en tu imagen
+                isPassword = true,
+                iconOnLeft = true // Icono a la izquierda en tu diseño
             )
 
             Text(
@@ -223,6 +207,79 @@ fun LoginScreen(onNavigateToSignUp: () -> Unit, onLoginSuccess: () -> Unit) {
                 text = "CONTROLA LO QUE GASTAS, DOMINA LO QUE AHORRAS",
                 style = TextStyle(fontSize = 10.sp, fontWeight = FontWeight.Bold)
             )
+        }
+    }
+}
+
+@Composable
+fun ZenitInputField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    iconOnLeft: Boolean,
+    isPassword: Boolean = false
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(65.dp), // Un poquito más de altura para que luzca la curva
+        shape = RoundedCornerShape(35.dp),
+        elevation = CardDefaults.cardElevation(6.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // BLOQUE ICONO IZQUIERDA (Contraseña)
+            if (iconOnLeft) {
+                Box(
+                    modifier = Modifier
+                        .padding(4.dp) // Pequeño margen para que la curva no pegue al borde
+                        .fillMaxHeight()
+                        .width(70.dp)
+                        .background(
+                            color = ZenitGreen,
+                            shape = RoundedCornerShape(30.dp) // CURVA INTERNA
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(icon, null, tint = Color.White, modifier = Modifier.size(26.dp))
+                }
+            }
+
+            TextField(
+                value = value,
+                onValueChange = onValueChange,
+                placeholder = { Text(placeholder, color = Color.Gray, fontSize = 16.sp) },
+                modifier = Modifier.weight(1f),
+                visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent
+                ),
+                singleLine = true
+            )
+
+            // BLOQUE ICONO DERECHA (Email)
+            if (!iconOnLeft) {
+                Box(
+                    modifier = Modifier
+                        .padding(4.dp) // Pequeño margen para que la curva no pegue al borde
+                        .fillMaxHeight()
+                        .width(70.dp)
+                        .background(
+                            color = ZenitLightGreen,
+                            shape = RoundedCornerShape(30.dp) // CURVA INTERNA
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(icon, null, tint = Color(0xFF0D5140), modifier = Modifier.size(26.dp))
+                }
+            }
         }
     }
 }

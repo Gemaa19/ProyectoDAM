@@ -20,14 +20,14 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
 
                 // 1. CAMBIO AQUÍ: startDestination ahora es "splash"
-                NavHost(navController = navController, startDestination = "splash") {
+                NavHost(navController = navController, startDestination = "carga") {
 
                     // 2. AÑADIMOS LA PANTALLA DE CARGA
-                    composable("splash") {
+                    composable("carga") {
                         CargaScreen(onNavigateToLogin = {
                             navController.navigate("login") {
                                 // Esto borra el Splash de la historia para que el botón "Atrás" no vuelva a él
-                                popUpTo("splash") { inclusive = true }
+                                popUpTo("carga") { inclusive = true }
                             }
                         })
                     }
@@ -56,12 +56,32 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-                    composable("prevision") {
-                        PrevisionScreen(onBack = { navController.popBackStack() })
+                    composable("objetivos") {
+                        ObjetivosScreen(
+                            onMenuClick = { navController.navigate("hamburguesa") },
+                            onNavigateToInicio = { navController.navigate("inicio") },
+                            onNavigateToMovimientos = { navController.navigate("movimientos") },
+                            onNavigateToAnalisis = { navController.navigate("analisis") } // <--- CAMBIADO
+                        )
                     }
 
                     composable("movimientos") {
-                        MovimientosScreen(onBack = { navController.popBackStack() })
+                        MovimientosScreen(
+                            onMenuClick = { navController.navigate("hamburguesa") },
+                            onNavigateToPrevision = { navController.navigate("prevision") },
+                            // AQUÍ ESTABA EL ERROR: Faltaba conectar la navegación a inicio
+                            onNavigateToInicio = { navController.navigate("inicio") }
+                        )
+                    }
+
+                    composable("analisis") {
+                        AnalisisScreen(
+                            onMenuClick = { navController.navigate("hamburguesa") },
+                            onNavigateToInicio = { navController.navigate("inicio") },
+                            onNavigateToPrevision = { navController.navigate("prevision") },
+                            // ESTA ES LA QUE FALTABA:
+                            onNavigateToMovimientos = { navController.navigate("movimientos") }
+                        )
                     }
 
                     composable("hamburguesa") {
@@ -113,7 +133,7 @@ fun InicioScreenPreview() {
     }
 }
 
-@Preview(showBackground = true, showSystemUi = true)
+//@Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun HamburguesaScreenPreview() {
     ZenitAppTheme {
@@ -128,23 +148,61 @@ fun HamburguesaScreenPreview() {
 
 //@Preview(showBackground = true, showSystemUi = true)
 @Composable
-fun PrevisionScreen() {
+fun ObjetivosScreenPreview() { // <--- Nombre actualizado
     ZenitAppTheme {
-        PrevisionScreen(onBack = {})
+        ObjetivosScreen(
+            onMenuClick = {},
+            onNavigateToInicio = {},
+            onNavigateToMovimientos = {},
+            onNavigateToAnalisis = {} // <--- Debe coincidir con la función original
+        )
+    }
+}
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun NuevoObjetivoScreenPreview() { // He añadido "Preview" al nombre para que no choque con la original
+    ZenitAppTheme {
+        NuevoObjetivoScreen(onBack = {})
     }
 }
 
 //@Preview(showBackground = true, showSystemUi = true)
 @Composable
-fun MovimientosScreen() {
+fun MovimientosScreenPreview() { // He añadido "Preview" al nombre para que no choque con la original
     ZenitAppTheme {
-        MovimientosScreen(onBack = {})
+        MovimientosScreen(
+            onMenuClick = {},
+            onNavigateToPrevision = {},
+            onNavigateToInicio = {} // <--- Cambiado por el que faltaba
+        )
     }
 }
 
 //@Preview(showBackground = true, showSystemUi = true)
 @Composable
-fun SplashScreenPreview() {
+fun NuevoMovimientoScreenPreview() { // He añadido "Preview" al nombre para que no choque con la original
+    ZenitAppTheme {
+        NuevoMovimientoScreen(onBack = {})
+    }
+}
+
+//@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun AnalisisScreenPreview() {
+    ZenitAppTheme {
+        AnalisisScreen(
+            onMenuClick = {},
+            onNavigateToInicio = {},
+            onNavigateToMovimientos = {},
+            onNavigateToPrevision = {}
+        )
+    }
+}
+
+//@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun CargaScreenPreview() {
     ZenitAppTheme {
         CargaScreen(onNavigateToLogin = {})
     }
