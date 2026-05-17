@@ -23,10 +23,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import com.gema.zenitapp.api.RetrofitClient
-import com.gema.zenitapp.models.LoginUsuario
 import android.util.Log
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.ui.text.input.VisualTransformation
+import com.gema.zenit.models.LoginUsuario
 import com.gema.zenitapp.ui.theme.BackgroundWhite
 import com.gema.zenitapp.ui.theme.InputGray
 import com.gema.zenitapp.ui.theme.ZenitGreen
@@ -188,8 +188,23 @@ fun LoginScreen(onNavigateToSignUp: () -> Unit, onLoginSuccess: () -> Unit) {
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            TextButton(onClick = { onNavigateToSignUp() }) {
-                Text(text = "¿No tienes cuenta? Sign up", color = Color.Gray)
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "¿No tienes cuenta? ",
+                    color = Color.Gray
+                )
+                TextButton(
+                    onClick = { onNavigateToSignUp() },
+                    contentPadding = PaddingValues(0.dp) // Elimina el espacio extra alrededor del botón
+                ) {
+                    Text(
+                        text = "Sign up",
+                        color = Color.Gray, // O el color que prefieras para que resalte
+                        fontWeight = FontWeight.Bold // Hace que se vea en negrita
+                    )
+                }
             }
         }
 

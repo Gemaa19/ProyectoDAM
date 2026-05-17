@@ -2,9 +2,11 @@ package com.gema.zenitapp
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -14,26 +16,47 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.gema.zenitapp.componentes.IconoSeleccionableCategoria
 import com.gema.zenitapp.ui.theme.ZenitGreen
 import com.gema.zenitapp.ui.theme.ZenitLightGreen
+import com.gema.zenitapp.viewmodel.AuthViewModel
 
 @Composable
-fun NuevoObjetivoScreen(onBack: () -> Unit) {
+fun NuevoObjetivoScreen(onBack: () -> Unit, authViewModel: AuthViewModel = viewModel()) {
     var esPresupuesto by remember { mutableStateOf(true) }
     var importe by remember { mutableStateOf("0.00") }
     var nombreObjetivo by remember { mutableStateOf("") }
     var esMensual by remember { mutableStateOf(true) }
     var recordatorio by remember { mutableStateOf(true) }
 
+    var categoriaSeleccionadaId by remember { mutableStateOf<Long?>(null) }
+    val context = LocalContext.current
     Scaffold(
         topBar = { CabeceraSimple("Establecer objetivo", onBack) },
         bottomBar = {
             // Botón fijo abajo como pediste
+            // BUSCA EL BOTÓN ABAJO EN TU NUEVOOBJETIVOSCREEN Y DÉJALO ASÍ:
             Button(
-                onClick = { /* Lógica de guardado */ },
+                onClick = {
+                    val montoDouble = importe.toDoubleOrNull() ?: 0.0
+                    if (nombreObjetivo.isNotBlank() && montoDouble > 0.0) {
+                        // CAMBIADO: Ahora invoca a guardarMetaEnBBDD
+                        authViewModel.guardarObjetivoEnBBDD(
+                            context = context,
+                            nombre = nombreObjetivo,
+                            objetivo = montoDouble,
+                            fechaLimite = null, // Puedes mandarlo como null o pasarle una fecha "YYYY-MM-DD" si añades un DatePicker
+                            onSuccess = { onBack() } // Vuelve a la pantalla de Objetivos automáticamente
+                        )
+                    }
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(20.dp)
@@ -65,17 +88,32 @@ fun NuevoObjetivoScreen(onBack: () -> Unit) {
                 onSeleccion = { esPresupuesto = it }
             )
 
-            // IMPORTE
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp)
-            ) {
+            // IMPORTE CONFIGURADO COMO CAMPO EDITABLE REFORZADO
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                 Text("Importe", color = Color.Gray, fontSize = 14.sp)
-                Text(
-                    text = "${importe}€",
-                    fontSize = 42.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = Color(0xFF0D5140)
+                Spacer(Modifier.height(4.dp))
+                OutlinedTextField(
+                    value = importe,
+                    onValueChange = { importe = it },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    placeholder = { Text("0.00", fontSize = 24.sp, color = Color.LightGray, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center) },
+                    suffix = { Text("€", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0D5140)) },
+                    textStyle = LocalTextStyle.current.copy(
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color(0xFF0D5140),
+                        textAlign = TextAlign.Center
+                    ),
+                    modifier = Modifier
+                        .width(220.dp)
+                        .background(Color(0xFFF9F9F9), RoundedCornerShape(15.dp)), // Fondo pastel para ampliar la zona de click
+                    shape = RoundedCornerShape(15.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = ZenitGreen,
+                        unfocusedBorderColor = Color.LightGray.copy(alpha = 0.5f),
+                        focusedContainerColor = Color(0xFFF9F9F9),
+                        unfocusedContainerColor = Color(0xFFF9F9F9)
+                    )
                 )
             }
 
@@ -120,17 +158,17 @@ fun NuevoObjetivoScreen(onBack: () -> Unit) {
 
             Spacer(Modifier.height(20.dp))
 
-            // CATEGORÍAS
+            // 5. SECCIÓN DE CATEGORÍAS
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text("Categorías", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 Text("Ver todo", color = Color(0xFF00A680), fontWeight = FontWeight.Bold, fontSize = 13.sp)
             }
             Spacer(Modifier.height(12.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                IconoCategoria("Hogar", Icons.Default.Home, Color(0xFF00A680))
-                IconoCategoria("Servicios", Icons.Default.ElectricBolt, Color(0xFF00A680))
-                IconoCategoria("Transporte", Icons.Default.DirectionsCar, Color(0xFF00A680))
-                IconoCategoria("Comida", Icons.Default.Restaurant, Color(0xFF00A680))
+                IconoSeleccionableCategoria("Hogar", Icons.Default.Home, 1L, categoriaSeleccionadaId) { categoriaSeleccionadaId = it }
+                IconoSeleccionableCategoria("Servicios", Icons.Default.ElectricBolt, 2L, categoriaSeleccionadaId) { categoriaSeleccionadaId = it }
+                IconoSeleccionableCategoria("Transporte", Icons.Default.DirectionsCar, 3L, categoriaSeleccionadaId) { categoriaSeleccionadaId = it }
+                IconoSeleccionableCategoria("Comida", Icons.Default.Restaurant, 4L, categoriaSeleccionadaId) { categoriaSeleccionadaId = it }
             }
 
             Spacer(Modifier.height(25.dp))
@@ -161,6 +199,48 @@ fun NuevoObjetivoScreen(onBack: () -> Unit) {
             }
 
             Spacer(Modifier.height(20.dp)) // Espacio final para que el scroll no choque con el botón
+        }
+    }
+}
+
+@Composable
+fun CajaFrecuencia(
+    modifier: Modifier,
+    texto: String,
+    icono: androidx.compose.ui.graphics.vector.ImageVector,
+    seleccionado: Boolean,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = modifier
+            .height(65.dp) // <--- REDUCIDO DE 80.dp A 65.dp
+            .clickable { onClick() },
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (seleccionado) ZenitLightGreen else Color.White
+        ),
+        border = BorderStroke(
+            width = 1.dp,
+            color = if (seleccionado) ZenitLightGreen else Color.LightGray.copy(alpha = 0.5f)
+        )
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = icono,
+                contentDescription = null,
+                tint = if (seleccionado) Color(0xFF0D5140) else Color.Black,
+                modifier = Modifier.size(20.dp) // Icono un pelín más pequeño para ajustar
+            )
+            Text(
+                text = texto,
+                fontSize = 13.sp, // Fuente ligeramente más pequeña
+                fontWeight = FontWeight.Bold,
+                color = if (seleccionado) Color(0xFF0D5140) else Color.Black
+            )
         }
     }
 }

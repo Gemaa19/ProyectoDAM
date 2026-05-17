@@ -13,36 +13,48 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.gema.zenitapp.componentes.CabeceraPrincipal
 import com.gema.zenitapp.componentes.BarraNavegacionInferior
-
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.gema.zenitapp.viewmodel.AuthViewModel
 import com.gema.zenitapp.ui.theme.ZenitGreen
 import com.gema.zenitapp.ui.theme.ZenitLightGreen
+import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.CreditCard
+import com.gema.zenitapp.componentes.Movimiento
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun InicioScreen(onNavigateToPrevision: () -> Unit, onNavigateToMovimientos: () -> Unit, onMenuClick: () -> Unit) {
+fun InicioScreen(
+    onMenuClick: () -> Unit,
+    onNavigateToMovimientos: () -> Unit,
+    onNavigateToAnalisis: () -> Unit,
+    onNavigateToObjetivos: () -> Unit,
+    onNavigateToNuevoMovimiento: () -> Unit,
+    authViewModel: AuthViewModel = viewModel()
+) {
+    val context = LocalContext.current
 
-    // Datos de prueba adaptados a tu clase original
-    val movimientosHoy = listOf(
-        Movimiento("Starbucks", "Café y snacks", "-5.50€", false, Icons.Default.Restaurant, ZenitGreen),
-        Movimiento("Nómina", "Salario Mensual", "+2000€", true, Icons.Default.Payments, ZenitGreen)
-    )
+    LaunchedEffect(Unit) {
+        authViewModel.obtenerMovimientosBBDD(context)
+    }
 
-    val movimientosAyer = listOf(
-        Movimiento("Netflix", "Entretenimiento", "-15.99€", false, Icons.Default.Tv, ZenitGreen)
-    )
+    val movimientosReales = authViewModel.transaccionesReales
+    val sinDatos = movimientosReales.isEmpty()
 
     Scaffold(
         bottomBar = {
             BarraNavegacionInferior(
-                pantallaActual = "Inicio", // Al ser igual que el nombre del item, aparecerá seleccionado
-                onInicioClick = { /* No hará nada porque ya está seleccionado */ },
+                pantallaActual = "Inicio",
+                onInicioClick = {},
                 onMovimientosClick = onNavigateToMovimientos,
-                onAnalisisClick = { /* TODO */ },
-                onObjetivosClick = onNavigateToPrevision
+                onAnalisisClick = onNavigateToAnalisis,
+                onObjetivosClick = onNavigateToObjetivos
             )
         }
     ) { paddingValues ->
@@ -50,7 +62,7 @@ fun InicioScreen(onNavigateToPrevision: () -> Unit, onNavigateToMovimientos: () 
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(Color.White) // Fondo general blanco
+                .background(Color.White)
         ) {
             CabeceraPrincipal(
                 titulo = "ZENIT",
@@ -60,42 +72,100 @@ fun InicioScreen(onNavigateToPrevision: () -> Unit, onNavigateToMovimientos: () 
             LazyColumn(
                 modifier = Modifier.fillMaxSize()
             ) {
-                item {
-                    SeccionSaldo()
-                }
+                if (sinDatos) {
+                    item {
+                        BotonNuevoMovimiento(onClick = onNavigateToNuevoMovimiento)
+                        Spacer(Modifier.height(30.dp))
+                    }
+                } else {
+                    item {
+                        SeccionSaldo()
+                    }
 
-                item {
-                    TarjetasResumidas()
-                }
+                    item {
+                        TarjetasResumidas()
+                    }
 
-                item {
-                    Text(
-                        text = "Gastos del mes",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
-                        modifier = Modifier.padding(start = 24.dp, top = 24.dp, bottom = 8.dp)
-                    )
-                }
+                    item {
+                        Text(
+                            text = "Gastos del mes",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            modifier = Modifier.padding(start = 24.dp, top = 24.dp, bottom = 8.dp)
+                        )
+                    }
 
-                // Sección HOY
-                item {
-                    FilaFecha("Hoy", "16 Abril")
-                }
-                items(movimientosHoy) { mov ->
-                    ItemGasto(mov)
-                }
+                    items(movimientosReales) { transaccion ->
+                        val esIngreso = transaccion.tipo == "INGRESO"
 
-                // Sección AYER
-                item {
-                    Spacer(Modifier.height(8.dp))
-                    FilaFecha("Ayer", "15 Abril")
-                }
-                items(movimientosAyer) { mov ->
-                    ItemGasto(mov)
-                }
+                        val movVisual = Movimiento(
+                            nombre = transaccion.descripcion ?: "Sin descripción",
+                            categoria = "Categoría ${transaccion.categoriaId ?: ""}",
+                            cantidad = "${if (esIngreso) "+" else "-"}${transaccion.monto}€",
+                            esIngreso = esIngreso,
+                            icono = if (esIngreso) Icons.Default.Payments else Icons.Default.CreditCard,
+                            color = if (esIngreso) ZenitGreen else Color(0xFFE91E63)
+                        )
+
+                        ItemGasto(movimiento = movVisual)
+                    }
+                } // <--- ¡AQUÍ ESTABA EL FALLO! Cerramos el bloque 'else' correctamente
 
                 item { Spacer(Modifier.height(30.dp)) }
             }
+        }
+    }
+}
+
+@Composable
+fun EstadoVacioInicio(onAgregarClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 40.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = Icons.Default.Inbox,
+            contentDescription = null,
+            tint = Color.LightGray,
+            modifier = Modifier.size(64.dp)
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = "No hay ningún dato registrado",
+            color = Color.Gray,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Medium,
+            textAlign = TextAlign.Center
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Button(
+            onClick = { onAgregarClick() },
+            colors = ButtonDefaults.buttonColors(containerColor = ZenitGreen),
+            shape = RoundedCornerShape(25.dp),
+            modifier = Modifier
+                .height(48.dp)
+                .padding(horizontal = 16.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "Añadir nuevo movimiento",
+                color = Color.White,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }
@@ -156,7 +226,7 @@ fun TarjetaResumenPequeña(modifier: Modifier, title: String, amount: String, ic
         ) {
             Icon(icon, null, tint = iconColor, modifier = Modifier.size(24.dp))
             Spacer(Modifier.height(4.dp))
-            Text(title, color = Color.Gray, fontSize = 11.sp, maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            Text(title, color = Color.Gray, fontSize = 11.sp, maxLines = 2, textAlign = TextAlign.Center)
             Spacer(Modifier.height(4.dp))
             Text(amount, fontWeight = FontWeight.Bold, color = ZenitGreen, fontSize = 14.sp)
         }
@@ -173,6 +243,7 @@ fun FilaFecha(dia: String, fecha: String) {
         Text(fecha, color = Color.Gray, fontSize = 14.sp)
     }
 }
+
 @Composable
 fun ItemGasto(movimiento: Movimiento) {
     Card(
@@ -180,7 +251,7 @@ fun ItemGasto(movimiento: Movimiento) {
             .fillMaxWidth()
             .padding(horizontal = 24.dp, vertical = 6.dp)
             .height(70.dp),
-        shape = RoundedCornerShape(35.dp), // Forma de píldora
+        shape = RoundedCornerShape(35.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
     ) {
@@ -188,34 +259,30 @@ fun ItemGasto(movimiento: Movimiento) {
             modifier = Modifier.fillMaxSize(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Bloque de color izquierdo con el icono
             Box(
                 modifier = Modifier
                     .fillMaxHeight()
                     .width(70.dp)
-                    .background(movimiento.color), // Cambiado a .color
+                    .background(movimiento.color),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(movimiento.icono, contentDescription = null, tint = Color.White, modifier = Modifier.size(28.dp))
             }
 
-            // Textos centrales
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.Center
             ) {
-                Text(movimiento.nombre, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.Black) // Cambiado a .nombre
-                Text(movimiento.categoria, color = Color.Gray, fontSize = 13.sp) // Cambiado a .categoria
+                Text(movimiento.nombre, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.Black)
+                Text(movimiento.categoria, color = Color.Gray, fontSize = 13.sp)
             }
 
-            // Cantidad
             Text(
                 text = movimiento.cantidad,
                 fontWeight = FontWeight.Bold,
                 fontSize = 15.sp,
-                // Usamos tu variable esIngreso para cambiar el color del dinero
                 color = if (movimiento.esIngreso) ZenitGreen else Color.Black,
                 modifier = Modifier.padding(end = 20.dp)
             )

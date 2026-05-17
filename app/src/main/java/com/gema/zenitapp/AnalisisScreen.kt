@@ -27,7 +27,7 @@ fun AnalisisScreen(
     onMenuClick: () -> Unit,
     onNavigateToInicio: () -> Unit,
     onNavigateToMovimientos: () -> Unit,
-    onNavigateToPrevision: () -> Unit
+    onNavigateToObjetivos: () -> Unit
 ) {
     var mesSeleccionado by remember { mutableStateOf("Marzo") }
 
@@ -37,8 +37,8 @@ fun AnalisisScreen(
                 pantallaActual = "Análisis",
                 onInicioClick = onNavigateToInicio,
                 onMovimientosClick = onNavigateToMovimientos,
-                onAnalisisClick = { /* Ya estamos aquí */ },
-                onObjetivosClick = onNavigateToPrevision
+                onAnalisisClick = {},
+                onObjetivosClick = onNavigateToObjetivos
             )
         }
     ) { paddingValues ->

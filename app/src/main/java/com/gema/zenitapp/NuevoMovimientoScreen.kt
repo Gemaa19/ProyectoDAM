@@ -1,12 +1,16 @@
 package com.gema.zenitapp
 
+import android.app.DatePickerDialog
+import android.os.Build
+import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -17,20 +21,56 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.gema.zenitapp.viewmodel.AuthViewModel
 import com.gema.zenitapp.ui.theme.ZenitGreen
 import com.gema.zenitapp.ui.theme.ZenitLightGreen
+import com.gema.zenitapp.componentes.IconoSeleccionableCategoria
+import java.time.LocalDate
+import java.util.Calendar
 
+@RequiresApi(Build.VERSION_CODES.O)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NuevoMovimientoScreen(onBack: () -> Unit) {
+fun NuevoMovimientoScreen(
+    onBack: () -> Unit,
+    authViewModel: AuthViewModel = viewModel()
+) {
+    val context = LocalContext.current
+
+    // ESTADOS REACTIVOS
     var esGasto by remember { mutableStateOf(true) }
     var esFijo by remember { mutableStateOf(true) }
-    var importe by remember { mutableStateOf("0.00") }
+    var importe by remember { mutableStateOf("") }
     var nombreGasto by remember { mutableStateOf("") }
-    var esMensual by remember { mutableStateOf(true) }
     var recordatorio by remember { mutableStateOf(false) }
+
+    // NUEVO: Estado para almacenar la fecha elegida (Inicia con el día de hoy en formato YYYY-MM-DD)
+    var fechaSeleccionada by remember { mutableStateOf(LocalDate.now().toString()) }
+
+    // Configuración del DatePickerDialog Nativo de Android
+    val calendarioLogico = Calendar.getInstance()
+    val datePickerDialog = DatePickerDialog(
+        context,
+        { _, anyo, mes, dia ->
+            // Corregimos el mes (+1) porque Calendar los cuenta de 0 a 11
+            val mesFormateado = String.format("%02d", mes + 1)
+            val diaFormateado = String.format("%02d", dia)
+            fechaSeleccionada = "$anyo-$mesFormateado-$diaFormateado"
+        },
+        calendarioLogico.get(Calendar.YEAR),
+        calendarioLogico.get(Calendar.MONTH),
+        calendarioLogico.get(Calendar.DAY_OF_MONTH)
+    )
+
+    // Almacena el ID de la categoría seleccionada por el usuario
+    var categoriaSeleccionadaId by remember { mutableStateOf<Long?>(null) }
 
     Column(
         modifier = Modifier
@@ -65,27 +105,43 @@ fun NuevoMovimientoScreen(onBack: () -> Unit) {
 
             Spacer(Modifier.height(15.dp))
 
-            // IMPORTE GIGANTE
+            // IMPORTE EDITABLE REFORZADO
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                 Text("Importe", color = Color.Gray, fontSize = 14.sp)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = importe + "€",
-                        fontSize = 35.sp,
+                Spacer(Modifier.height(4.dp))
+                OutlinedTextField(
+                    value = importe,
+                    onValueChange = { importe = it },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    placeholder = { Text("0.00", fontSize = 24.sp, color = Color.LightGray, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center) },
+                    suffix = { Text("€", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0D5140)) },
+                    textStyle = LocalTextStyle.current.copy(
+                        fontSize = 28.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF0D5140)
+                        color = Color(0xFF0D5140),
+                        textAlign = TextAlign.Center
+                    ),
+                    modifier = Modifier
+                        .width(220.dp)
+                        .background(Color(0xFFF9F9F9), RoundedCornerShape(15.dp)),
+                    shape = RoundedCornerShape(15.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = ZenitGreen,
+                        unfocusedBorderColor = Color.LightGray.copy(alpha = 0.5f),
+                        focusedContainerColor = Color(0xFFF9F9F9),
+                        unfocusedContainerColor = Color(0xFFF9F9F9)
                     )
-                }
+                )
             }
 
             Spacer(Modifier.height(15.dp))
 
             // NOMBRE DEL GASTO
-            Text("Nombre del gasto", fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 8.dp))
+            Text("Nombre del gasto o ingreso", fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 8.dp))
             OutlinedTextField(
                 value = nombreGasto,
                 onValueChange = { nombreGasto = it },
-                placeholder = { Text("ej. Alquiler, internet, Netflix") },
+                placeholder = { Text("ej. Alquiler, internet, Nómina") },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
                 leadingIcon = { Icon(Icons.Default.Edit, null, tint = Color.Gray) },
@@ -94,31 +150,39 @@ fun NuevoMovimientoScreen(onBack: () -> Unit) {
 
             Spacer(Modifier.height(15.dp))
 
-            // FRECUENCIA (MENSUAL / ANUAL)
-            Text("Frecuencia", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-            Row(
+            // SECCIÓN NUEVA: SELECCIÓN DE FECHA (Sustituye a Frecuencia)
+            Text("Fecha del movimiento", fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 8.dp))
+            OutlinedTextField(
+                value = fechaSeleccionada,
+                onValueChange = {}, // Bloqueado para obligar a usar el calendario flotante
+                readOnly = true,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(65.dp), // <--- AJUSTA TAMBIÉN LA FILA AQUÍ
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                CajaFrecuencia(Modifier.weight(1f), "Mensual", Icons.Default.CalendarMonth, esMensual) { esMensual = true }
-                CajaFrecuencia(Modifier.weight(1f), "Anual", Icons.Default.CalendarToday, !esMensual) { esMensual = false }
-            }
+                    .clickable { datePickerDialog.show() },
+                shape = RoundedCornerShape(20.dp),
+                leadingIcon = {
+                    IconButton(onClick = { datePickerDialog.show() }) {
+                        Icon(Icons.Default.CalendarToday, null, tint = ZenitGreen)
+                    }
+                },
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedBorderColor = Color.LightGray,
+                    focusedBorderColor = ZenitGreen
+                )
+            )
 
             Spacer(Modifier.height(24.dp))
 
-            // CATEGORÍAS
+            // CATEGORÍAS SELECCIONABLES (ANCLADAS A LAS 4 SOLICITADAS)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text("Categorías", fontWeight = FontWeight.Bold)
-                Text("Ver todo", color = ZenitGreen, fontWeight = FontWeight.Bold, fontSize = 14.sp)
             }
             Spacer(Modifier.height(12.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                IconoCategoria("Hogar", Icons.Default.Home, ZenitGreen)
-                IconoCategoria("Servicios", Icons.Default.ElectricBolt, ZenitGreen)
-                IconoCategoria("Transporte", Icons.Default.DirectionsCar, ZenitGreen)
-                IconoCategoria("Comida", Icons.Default.Restaurant, ZenitGreen)
+                IconoSeleccionableCategoria("Hogar", Icons.Default.Home, 1L, categoriaSeleccionadaId) { categoriaSeleccionadaId = it }
+                IconoSeleccionableCategoria("Servicios", Icons.Default.ElectricBolt, 2L, categoriaSeleccionadaId) { categoriaSeleccionadaId = it }
+                IconoSeleccionableCategoria("Transporte", Icons.Default.DirectionsCar, 3L, categoriaSeleccionadaId) { categoriaSeleccionadaId = it }
+                IconoSeleccionableCategoria("Comida", Icons.Default.Restaurant, 4L, categoriaSeleccionadaId) { categoriaSeleccionadaId = it }
             }
 
             Spacer(Modifier.height(15.dp))
@@ -142,21 +206,54 @@ fun NuevoMovimientoScreen(onBack: () -> Unit) {
 
             Spacer(Modifier.height(30.dp))
 
-            // BOTÓN GUARDAR
             Button(
-                onClick = { /* Guardar */ },
-                modifier = Modifier.fillMaxWidth().height(60.dp),
-                shape = RoundedCornerShape(15.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00A680))
+                onClick = {
+                    val importeLimpio = importe.replace(",", ".").trim()
+                    val montoDouble = importeLimpio.toDoubleOrNull() ?: 0.0
+                    val tipoMovimiento = if (esGasto) "GASTO" else "INGRESO"
+
+                    // VALIDACIÓN CON FEEDBACK VISUAL
+                    if (nombreGasto.isBlank()) {
+                        Toast.makeText(context, "Por favor, introduce una descripción", Toast.LENGTH_SHORT).show()
+                    } else if (montoDouble <= 0.0) {
+                        Toast.makeText(context, "Por favor, introduce un importe válido", Toast.LENGTH_SHORT).show()
+                    } else if (categoriaSeleccionadaId == null) {
+                        Toast.makeText(context, "Por favor, selecciona una categoría", Toast.LENGTH_SHORT).show()
+                        // Busca el final del validador dentro del Button en tu NuevoMovimientoScreen:
+                    } else {
+                        // Enviamos a AWS inyectando la fecha elegida del calendario
+                        authViewModel.guardarMovimientoenBBDD(
+                            context = context,
+                            monto = montoDouble,
+                            descripcion = nombreGasto,
+                            tipo = tipoMovimiento,
+                            fechaElegida = fechaSeleccionada,
+                            categoriaId = categoriaSeleccionadaId!!,
+                            onSuccess = {
+                                // Primero actualizamos los movimientos del listado en segundo plano
+                                authViewModel.obtenerMovimientosBBDD(context)
+                                // Segundo, volvemos atrás de forma segura en el hilo principal
+                                onBack()
+                            }
+                        )
+                    }
+                },
+                enabled = !authViewModel.isLoading,
+                modifier = Modifier.fillMaxWidth().height(55.dp),
+                shape = RoundedCornerShape(30.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = ZenitGreen)
             ) {
-                Icon(Icons.Default.Save, null)
-                Spacer(Modifier.width(8.dp))
-                Text("Guardar Gasto", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                if (authViewModel.isLoading) {
+                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                } else {
+                    Text("Guardar movimiento", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                }
             }
         }
     }
 }
 
+// MANTENEMOS COMPONENTES DE DISEÑO BASE FIJOS
 @Composable
 fun CabeceraSimple(titulo: String, onBack: () -> Unit) {
     Box(modifier = Modifier.fillMaxWidth().background(ZenitLightGreen).padding(16.dp)) {
@@ -186,57 +283,5 @@ fun SelectorDoble(opcion1: String, opcion2: String, seleccionado1: Boolean, onSe
                 }
             }
         }
-    }
-}
-
-@Composable
-fun CajaFrecuencia(
-    modifier: Modifier,
-    texto: String,
-    icono: androidx.compose.ui.graphics.vector.ImageVector,
-    seleccionado: Boolean,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = modifier
-            .height(65.dp) // <--- REDUCIDO DE 80.dp A 65.dp
-            .clickable { onClick() },
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (seleccionado) ZenitLightGreen else Color.White
-        ),
-        border = BorderStroke(
-            width = 1.dp,
-            color = if (seleccionado) ZenitLightGreen else Color.LightGray.copy(alpha = 0.5f)
-        )
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Icon(
-                imageVector = icono,
-                contentDescription = null,
-                tint = if (seleccionado) Color(0xFF0D5140) else Color.Black,
-                modifier = Modifier.size(20.dp) // Icono un pelín más pequeño para ajustar
-            )
-            Text(
-                text = texto,
-                fontSize = 13.sp, // Fuente ligeramente más pequeña
-                fontWeight = FontWeight.Bold,
-                color = if (seleccionado) Color(0xFF0D5140) else Color.Black
-            )
-        }
-    }
-}
-
-@Composable
-fun IconoCategoria(nombre: String, icono: ImageVector, color: Color) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Surface(shape = CircleShape, color = color, modifier = Modifier.size(55.dp)) {
-            Box(contentAlignment = Alignment.Center) { Icon(icono, null, tint = Color.White) }
-        }
-        Text(nombre, fontSize = 11.sp, color = Color.Gray, modifier = Modifier.padding(top = 4.dp))
     }
 }

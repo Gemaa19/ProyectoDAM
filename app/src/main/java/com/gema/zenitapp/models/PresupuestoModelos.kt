@@ -1,4 +1,4 @@
-package com.gema.zenitapp.models
+package com.gema.zenit.models
 
 import kotlinx.serialization.Serializable
 

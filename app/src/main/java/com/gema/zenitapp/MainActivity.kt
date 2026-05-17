@@ -19,22 +19,13 @@ class MainActivity : ComponentActivity() {
             ZenitAppTheme {
                 val navController = rememberNavController()
 
-                // 1. CAMBIO AQUÍ: startDestination ahora es "splash"
                 NavHost(navController = navController, startDestination = "carga") {
 
-                    // 2. AÑADIMOS LA PANTALLA DE CARGA
                     composable("carga") {
                         CargaScreen(onNavigateToLogin = {
                             navController.navigate("login") {
-                                // Esto borra el Splash de la historia para que el botón "Atrás" no vuelva a él
                                 popUpTo("carga") { inclusive = true }
                             }
-                        })
-                    }
-
-                    composable("signup") {
-                        SignUpScreen(onNavigateToLogin = {
-                            navController.navigate("login")
                         })
                     }
 
@@ -42,17 +33,62 @@ class MainActivity : ComponentActivity() {
                         LoginScreen(
                             onNavigateToSignUp = { navController.navigate("signup") },
                             onLoginSuccess = {
-                                // Opcional: Aquí también podrías usar popUpTo para que no vuelvan al login
-                                navController.navigate("inicio")
+                                navController.navigate("inicio") {
+                                    popUpTo("login") { inclusive = true }
+                                }
+                            }
+                        )
+                    }
+
+                    composable("signup") {
+                        RegistroScreen(
+                            onNavigateToLogin = { navController.navigate("login") },
+                            onRegistroSuccess = { // <--- Asegúrate de que aquí pone onRegistroSuccess
+                                navController.navigate("inicio") {
+                                    popUpTo("signup") {
+                                        inclusive = true
+                                    }
+                                }
                             }
                         )
                     }
 
                     composable("inicio") {
                         InicioScreen(
+                            onMenuClick = { /* Lógica menú */ },
+                            onNavigateToMovimientos = { navController.navigate("movimientos") },
+                            onNavigateToAnalisis = { navController.navigate("analisis") },
+                            onNavigateToObjetivos = { navController.navigate("objetivos") },
+                            // ASEGÚRATE DE QUE SE LLAMA ASÍ:
+                            onNavigateToNuevoMovimiento = { navController.navigate("nuevo_movimiento") }
+                        )
+                    }
+
+                    composable("hamburguesa") {
+                        HamburguesaScreen(
+                            onBackClick = { navController.popBackStack() },
+                            onEditClick = { /* Lógica para editar perfil */ },
+                            onMenuOptionClick = { optionName ->
+                                // Manejar clics en el menú, ej. navegar a Categorías, cerrar sesión, etc.
+                                when (optionName) {
+                                    "Categorías" -> navController.navigate("categorias")
+                                    "Cerrar sesión" -> { /* Lógica para cerrar sesión, volver al login */
+                                    }
+
+                                    else -> { /* Otras opciones */
+                                    }
+                                }
+                            }
+                        )
+                    }
+
+                    composable("movimientos") {
+                        MovimientosScreen(
                             onMenuClick = { navController.navigate("hamburguesa") },
-                            onNavigateToPrevision = { navController.navigate("prevision") },
-                            onNavigateToMovimientos = { navController.navigate("movimientos") }
+                            onNavigateToNuevoMovimiento = { navController.navigate("nuevo_movimiento") },
+                            onNavigateToInicio = { navController.navigate("inicio") },
+                            onNavigateToAnalisis = { navController.navigate("analisis") },
+                            onNavigateToObjetivos = { navController.navigate("objetivos") }
                         )
                     }
 
@@ -61,16 +97,8 @@ class MainActivity : ComponentActivity() {
                             onMenuClick = { navController.navigate("hamburguesa") },
                             onNavigateToInicio = { navController.navigate("inicio") },
                             onNavigateToMovimientos = { navController.navigate("movimientos") },
-                            onNavigateToAnalisis = { navController.navigate("analisis") } // <--- CAMBIADO
-                        )
-                    }
-
-                    composable("movimientos") {
-                        MovimientosScreen(
-                            onMenuClick = { navController.navigate("hamburguesa") },
-                            onNavigateToPrevision = { navController.navigate("prevision") },
-                            // AQUÍ ESTABA EL ERROR: Faltaba conectar la navegación a inicio
-                            onNavigateToInicio = { navController.navigate("inicio") }
+                            onNavigateToAnalisis = { navController.navigate("analisis") },
+                            onNavigateToNuevoObjetivo = { navController.navigate("nuevo_objetivo") }
                         )
                     }
 
@@ -78,26 +106,24 @@ class MainActivity : ComponentActivity() {
                         AnalisisScreen(
                             onMenuClick = { navController.navigate("hamburguesa") },
                             onNavigateToInicio = { navController.navigate("inicio") },
-                            onNavigateToPrevision = { navController.navigate("prevision") },
-                            // ESTA ES LA QUE FALTABA:
-                            onNavigateToMovimientos = { navController.navigate("movimientos") }
+                            onNavigateToMovimientos = { navController.navigate("movimientos") },
+                            onNavigateToObjetivos = { navController.navigate("objetivos") }
                         )
                     }
 
-                    composable("hamburguesa") {
-                        HamburguesaScreen(
-                            onBackClick = { navController.popBackStack() }, // Volver atrás
-                            onEditClick = { /* Lógica para editar perfil */ },
-                            onMenuOptionClick = { optionName ->
-                                // Manejar clics en el menú, ej. navegar a Categorías, cerrar sesión, etc.
-                                when (optionName) {
-                                    "Categorías" -> navController.navigate("categorias")
-                                    "Cerrar sesión" -> { /* Lógica para cerrar sesión, volver al login */ }
-                                    else -> { /* Otras opciones */ }
-                                }
-                            }
+                    composable("nuevo_movimiento") {
+                        NuevoMovimientoScreen(
+                            onBack = { navController.popBackStack() }
                         )
                     }
+
+                    composable("nuevo_objetivo") {
+                        NuevoObjetivoScreen(
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
+
+
                 }
             }
         }
@@ -114,9 +140,12 @@ fun LoginPreview() {
 
 //@Preview(showBackground = true, showSystemUi = true)
 @Composable
-fun SignUpPreview() {
+fun RegistroPreview() {
     ZenitAppTheme {
-        SignUpScreen(onNavigateToLogin = {})
+        RegistroScreen(
+            onNavigateToLogin = {},
+            onRegistroSuccess = {} // <--- Cambiado aquí también
+        )
     }
 }
 
@@ -124,11 +153,12 @@ fun SignUpPreview() {
 @Composable
 fun InicioScreenPreview() {
     ZenitAppTheme {
-        // Añadimos el onMenuClick vacío para que no dé error
         InicioScreen(
             onMenuClick = {},
-            onNavigateToPrevision = {},
-            onNavigateToMovimientos = {}
+            onNavigateToMovimientos = {},
+            onNavigateToAnalisis = {},
+            onNavigateToObjetivos = {},
+            onNavigateToNuevoMovimiento = {} // <--- Cambiado con el nombre nuevo
         )
     }
 }
@@ -137,7 +167,6 @@ fun InicioScreenPreview() {
 @Composable
 fun HamburguesaScreenPreview() {
     ZenitAppTheme {
-        // Usamos el nombre correcto de la pantalla y sus parámetros
         HamburguesaScreen(
             onBackClick = {},
             onEditClick = {},
@@ -154,12 +183,13 @@ fun ObjetivosScreenPreview() { // <--- Nombre actualizado
             onMenuClick = {},
             onNavigateToInicio = {},
             onNavigateToMovimientos = {},
-            onNavigateToAnalisis = {} // <--- Debe coincidir con la función original
+            onNavigateToAnalisis = {},
+            onNavigateToNuevoObjetivo = { }
         )
     }
 }
 
-@Preview(showBackground = true, showSystemUi = true)
+//@Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun NuevoObjetivoScreenPreview() { // He añadido "Preview" al nombre para que no choque con la original
     ZenitAppTheme {
@@ -167,14 +197,16 @@ fun NuevoObjetivoScreenPreview() { // He añadido "Preview" al nombre para que n
     }
 }
 
-//@Preview(showBackground = true, showSystemUi = true)
+@Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun MovimientosScreenPreview() { // He añadido "Preview" al nombre para que no choque con la original
     ZenitAppTheme {
         MovimientosScreen(
             onMenuClick = {},
-            onNavigateToPrevision = {},
-            onNavigateToInicio = {} // <--- Cambiado por el que faltaba
+            onNavigateToNuevoMovimiento = {},
+            onNavigateToInicio = {},
+            onNavigateToAnalisis = {},
+            onNavigateToObjetivos = {},
         )
     }
 }
@@ -195,7 +227,7 @@ fun AnalisisScreenPreview() {
             onMenuClick = {},
             onNavigateToInicio = {},
             onNavigateToMovimientos = {},
-            onNavigateToPrevision = {}
+            onNavigateToObjetivos = {}
         )
     }
 }

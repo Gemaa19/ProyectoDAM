@@ -26,7 +26,8 @@ fun ObjetivosScreen(
     onMenuClick: () -> Unit,
     onNavigateToInicio: () -> Unit,
     onNavigateToMovimientos: () -> Unit,
-    onNavigateToAnalisis: () -> Unit
+    onNavigateToAnalisis: () -> Unit,
+    onNavigateToNuevoObjetivo: () -> Unit // <-- Este parámetro es el que activa la ruta
 ) {
     val presupuestos = listOf(
         CategoriaPresupuesto("Comida & bebida", "120€ / 200€", 0.6f, Icons.Default.Restaurant, ZenitGreen, Color.Red),
@@ -46,7 +47,7 @@ fun ObjetivosScreen(
                 onInicioClick = onNavigateToInicio,
                 onMovimientosClick = onNavigateToMovimientos,
                 onAnalisisClick = onNavigateToAnalisis,
-                onObjetivosClick = { /* Ya estamos aquí */ }
+                onObjetivosClick = {}
             )
         }
     ) { paddingValues ->
@@ -56,7 +57,6 @@ fun ObjetivosScreen(
                 .padding(paddingValues)
                 .background(Color.White)
         ) {
-            // CABECERA DINÁMICA
             CabeceraPrincipal(titulo = "Objetivos", onMenuClick = onMenuClick)
 
             LazyColumn(
@@ -85,9 +85,12 @@ fun ObjetivosScreen(
                 }
                 items(metas) { item -> ItemObjetivo(item) }
 
-                // BOTÓN NUEVO OBJETIVO
+                // BOTÓN NUEVO OBJETIVO ENLAZADO
                 item {
-                    BotonPunteado(texto = "Nuevo objetivo")
+                    BotonPunteado(
+                        texto = "Nuevo objetivo",
+                        onClick = onNavigateToNuevoObjetivo // <-- Le pasamos la navegación aquí
+                    )
                 }
             }
         }
@@ -108,7 +111,6 @@ fun ItemObjetivo(item: CategoriaPresupuesto) {
             modifier = Modifier.fillMaxWidth().height(85.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Bloque del icono lateral
             Box(
                 modifier = Modifier.fillMaxHeight().width(65.dp).background(item.colorIcono),
                 contentAlignment = Alignment.Center
@@ -117,18 +119,16 @@ fun ItemObjetivo(item: CategoriaPresupuesto) {
             }
 
             Column(Modifier.padding(horizontal = 16.dp).weight(1f)) {
-                // Fila de Texto (Nombre y Cantidades)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(item.nombre, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     Text(item.cantidades, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 }
 
-                // Fila de Progreso y Edición
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
                     LinearProgressIndicator(
                         progress = { item.progreso },
                         modifier = Modifier.weight(1f).height(8.dp),
-                        color = item.colorBarra, // Rojo para presupuestos, Verde para metas
+                        color = item.colorBarra,
                         trackColor = Color.Black,
                         strokeCap = StrokeCap.Round
                     )
@@ -146,9 +146,9 @@ fun ItemObjetivo(item: CategoriaPresupuesto) {
 }
 
 @Composable
-fun BotonPunteado(texto: String) {
+fun BotonPunteado(texto: String, onClick: () -> Unit) { // <-- Añadido el parámetro onClick
     OutlinedButton(
-        onClick = { /* Navegar */ },
+        onClick = onClick, // <-- Corregido: Sin llaves lambda internas para que responda directo
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 35.dp, vertical = 20.dp)

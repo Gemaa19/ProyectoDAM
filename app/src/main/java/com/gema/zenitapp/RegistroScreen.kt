@@ -19,18 +19,26 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.gema.zenitapp.viewmodel.AuthViewModel
 import com.gema.zenitapp.ui.theme.BackgroundWhite
 import com.gema.zenitapp.ui.theme.ZenitGreen
 import com.gema.zenitapp.ui.theme.ZenitLightGreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SignUpScreen(onNavigateToLogin: () -> Unit) {
+fun RegistroScreen(
+    onNavigateToLogin: () -> Unit,
+    onRegistroSuccess: () -> Unit,
+    authViewModel: AuthViewModel = viewModel()
+) {
     var userName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
+
+    var errorMessage by remember { mutableStateOf("") }
+    var errorLocal by remember { mutableStateOf("") }
 
     Column(
         modifier = Modifier
@@ -55,7 +63,7 @@ fun SignUpScreen(onNavigateToLogin: () -> Unit) {
                 Text(
                     text = "ZENIT",
                     style = TextStyle(
-                        fontSize = 60.sp, // Ajustado para que no sea gigante y tape todo
+                        fontSize = 60.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.DarkGray
                     )
@@ -125,22 +133,67 @@ fun SignUpScreen(onNavigateToLogin: () -> Unit) {
                     isPassword = true
                 )
 
+                if (errorLocal.isNotEmpty()) {
+                    Text(text = errorLocal, color = Color.Red, modifier = Modifier.padding(16.dp))
+                } else if (authViewModel.errorMessage.isNotEmpty()) {
+                    Text(text = authViewModel.errorMessage, color = Color.Red, modifier = Modifier.padding(16.dp))
+                }
+
                 Spacer(modifier = Modifier.height(35.dp))
 
                 Button(
-                    onClick = { /* Lógica de registro */ },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(55.dp),
+                    onClick = {
+                        if (userName.isBlank() || email.isBlank() || password.isBlank()) {
+                            errorLocal = "Por favor, rellena todos los campos"
+                        } else if (password != confirmPassword) {
+                            errorLocal = "Las contraseñas no coinciden"
+                        } else {
+                            errorLocal = "" // Limpiamos el error local si todo está bien
+
+                            // LLAMAMOS AL VIEWMODEL
+                            authViewModel.registrarUsuario(
+                                nombre = userName,
+                                correo = email,
+                                clave = password,
+                                onResult = { exito ->
+                                    if (exito) {
+                                        onRegistroSuccess()
+                                    }
+                                }
+                            )
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().height(55.dp),
+                    enabled = !authViewModel.isLoading,
                     shape = RoundedCornerShape(30.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = ZenitGreen)
                 ) {
-                    Text(text = "Sign up", fontSize = 18.sp, color = Color.White)
+                    if (authViewModel.isLoading) {
+                        CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                    } else {
+                        Text(text = "Sign up", fontSize = 18.sp, color = Color.White)
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
-                TextButton(onClick = { onNavigateToLogin() }) {
-                    Text(text = "¿Ya tienes cuenta? Login", color = Color.Gray)
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "¿Ya tienes cuenta? ",
+                        color = Color.Gray
+                    )
+                    TextButton(
+                        onClick = { onNavigateToLogin() },
+                        contentPadding = PaddingValues(0.dp) // Elimina el espacio extra alrededor del botón
+                    ) {
+                        Text(
+                            text = "Login",
+                            color = Color.Gray, // O el color que prefieras para que resalte
+                            fontWeight = FontWeight.Bold // Hace que se vea en negrita
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(20.dp)) // Espacio final para que el scroll no corte el botón

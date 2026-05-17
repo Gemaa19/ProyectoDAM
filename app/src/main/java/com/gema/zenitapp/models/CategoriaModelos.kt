@@ -1,4 +1,4 @@
-package com.gema.zenitapp.models
+package com.gema.zenit.models
 
 import kotlinx.serialization.Serializable
 
@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
 data class CategoriaResponse(
     val id: Long,
     val nombre: String,
-    val icono: String? // Aquí guardaremos un nombre de icono para Android (ej: "ic_food")
+    val icono: String?
 )
 
 @Serializable
