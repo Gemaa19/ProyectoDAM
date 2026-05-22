@@ -1,5 +1,6 @@
 package com.gema.zenitapp
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -14,7 +15,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -22,8 +25,11 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.gema.zenitapp.viewmodel.AuthViewModel
 import com.gema.zenitapp.ui.theme.BackgroundWhite
-import com.gema.zenitapp.ui.theme.ZenitGreen
-import com.gema.zenitapp.ui.theme.ZenitLightGreen
+import com.gema.zenitapp.ui.theme.colorBoton
+import com.gema.zenitapp.ui.theme.verdeOscuro
+import com.gema.zenitapp.ui.theme.verdeClaro
+import com.gema.zenitapp.ui.theme.verdeFondo
+import com.gema.zenitapp.ui.theme.verdeTitulos
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,47 +45,48 @@ fun RegistroScreen(
 
     var errorMessage by remember { mutableStateOf("") }
     var errorLocal by remember { mutableStateOf("") }
+    val context = LocalContext.current
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(BackgroundWhite)
     ) {
-        Column(
+
+        Box(
             modifier = Modifier
-                .weight(1f)
                 .fillMaxWidth()
-                .verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ){
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
-                    .background(ZenitLightGreen, shape = RoundedCornerShape(bottomEnd = 100.dp))
-                    .padding(top = 40.dp),
-                contentAlignment = Alignment.Center
-            ) {
+                .height(250.dp)
+                .background(verdeFondo, shape = RoundedCornerShape(bottomEnd = 100.dp))
+                .padding(top = 50.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(verticalArrangement = Arrangement.Center) {
                 Text(
                     text = "ZENIT",
-                    style = TextStyle(
-                        fontSize = 60.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.DarkGray
-                    )
+                    color = verdeOscuro,
+                    fontSize = 80.sp,
+                    fontWeight = FontWeight.W900,
+                    fontFamily = FontFamily.SansSerif,
+                    letterSpacing = 8.sp
                 )
             }
+        }
 
-            Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
-            Text(
-                text = "Sign up",
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(end = 40.dp, top = 10.dp),
-                textAlign = TextAlign.End,
-                style = TextStyle(fontSize = 32.sp, color = ZenitGreen)
-            )
+        Text(
+            text = "Sign up",
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(end = 40.dp),
+            textAlign = TextAlign.End,
+            style = TextStyle(fontSize = 32.sp,
+                color = verdeTitulos,
+                fontWeight = FontWeight.W500,
+                fontFamily = FontFamily.SansSerif,
+                letterSpacing = 2.sp)
+        )
 
             Column(
                 modifier = Modifier
@@ -148,16 +155,26 @@ fun RegistroScreen(
                         } else if (password != confirmPassword) {
                             errorLocal = "Las contraseñas no coinciden"
                         } else {
-                            errorLocal = "" // Limpiamos el error local si todo está bien
+                            errorLocal = "" // Limpiamos el error de validación local
 
-                            // LLAMAMOS AL VIEWMODEL
+                            // LLAMAMOS AL VIEWMODEL ACTUALIZADO
                             authViewModel.registrarUsuario(
-                                nombre = userName,
-                                correo = email,
-                                clave = password,
+                                nombre = userName.trim(),
+                                correo = email.trim(),
+                                clave = password.trim(),
                                 onResult = { exito ->
                                     if (exito) {
-                                        onRegistroSuccess()
+                                        // 1. Informamos visualmente al usuario
+                                        Toast.makeText(context, "Usuario registrado correctamente", Toast.LENGTH_LONG).show()
+
+                                        // 2. Vaciamos todos los campos del formulario
+                                        userName = ""
+                                        email = ""
+                                        password = ""
+                                        confirmPassword = ""
+
+                                        // 3. Regresamos de forma segura a la pantalla de Login
+                                        onNavigateToLogin()
                                     }
                                 }
                             )
@@ -166,7 +183,7 @@ fun RegistroScreen(
                     modifier = Modifier.fillMaxWidth().height(55.dp),
                     enabled = !authViewModel.isLoading,
                     shape = RoundedCornerShape(30.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = ZenitGreen)
+                    colors = ButtonDefaults.buttonColors(containerColor = colorBoton)
                 ) {
                     if (authViewModel.isLoading) {
                         CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
@@ -186,30 +203,29 @@ fun RegistroScreen(
                     )
                     TextButton(
                         onClick = { onNavigateToLogin() },
-                        contentPadding = PaddingValues(0.dp) // Elimina el espacio extra alrededor del botón
+                        contentPadding = PaddingValues(0.dp)
                     ) {
                         Text(
                             text = "Login",
-                            color = Color.Gray, // O el color que prefieras para que resalte
-                            fontWeight = FontWeight.Bold // Hace que se vea en negrita
+                            color = verdeTitulos,
+                            fontWeight = FontWeight.W500,
+                            fontSize = 18.sp
                         )
                     }
                 }
-
-                Spacer(modifier = Modifier.height(20.dp)) // Espacio final para que el scroll no corte el botón
             }
-        }
+
+        Spacer(modifier = Modifier.weight(1f))
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(50.dp)
-                .background(ZenitLightGreen),
+                .height(70.dp)
+                .background(verdeFondo),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = "CONTROLA LO QUE GASTAS, DOMINA LO QUE AHORRAS",
-                style = TextStyle(fontSize = 10.sp, fontWeight = FontWeight.Bold),
-                textAlign = TextAlign.Center
+                style = TextStyle(fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
             )
         }
     }

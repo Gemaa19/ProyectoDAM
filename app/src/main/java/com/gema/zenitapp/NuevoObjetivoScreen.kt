@@ -24,8 +24,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.gema.zenitapp.componentes.IconoSeleccionableCategoria
-import com.gema.zenitapp.ui.theme.ZenitGreen
-import com.gema.zenitapp.ui.theme.ZenitLightGreen
+import com.gema.zenitapp.ui.theme.verdeOscuro
+import com.gema.zenitapp.ui.theme.verdeClaro
 import com.gema.zenitapp.viewmodel.AuthViewModel
 
 @Composable
@@ -40,21 +40,43 @@ fun NuevoObjetivoScreen(onBack: () -> Unit, authViewModel: AuthViewModel = viewM
     val context = LocalContext.current
     Scaffold(
         topBar = { CabeceraSimple("Establecer objetivo", onBack) },
+        // BUSCA EL SCOFFOLD -> BOTTOMBAR DE TU NUEVOOBJETIVOSCREEN Y SUSTITUYE EL BOTÓN POR ESTE:
         bottomBar = {
-            // Botón fijo abajo como pediste
-            // BUSCA EL BOTÓN ABAJO EN TU NUEVOOBJETIVOSCREEN Y DÉJALO ASÍ:
             Button(
                 onClick = {
                     val montoDouble = importe.toDoubleOrNull() ?: 0.0
-                    if (nombreObjetivo.isNotBlank() && montoDouble > 0.0) {
-                        // CAMBIADO: Ahora invoca a guardarMetaEnBBDD
-                        authViewModel.guardarObjetivoEnBBDD(
-                            context = context,
-                            nombre = nombreObjetivo,
-                            objetivo = montoDouble,
-                            fechaLimite = null, // Puedes mandarlo como null o pasarle una fecha "YYYY-MM-DD" si añades un DatePicker
-                            onSuccess = { onBack() } // Vuelve a la pantalla de Objetivos automáticamente
-                        )
+
+                    if (montoDouble > 0.0) {
+                        if (esPresupuesto) {
+                            // ==========================================================
+                            // CASO A: EL USUARIO QUIERE GUARDAR UN PRESUPUESTO EN AWS
+                            // ==========================================================
+                            val catId = categoriaSeleccionadaId ?: 1L // Si no marca ninguna, por defecto Hogar (1)
+
+                            authViewModel.guardarPresupuestoEnBBDD(
+                                context = context,
+                                montoLimite = montoDouble,
+                                categoriaId = catId,
+                                mes = 5,    // Mes actual (Mayo) - Puedes automatizarlo con java.util.Calendar si quieres
+                                anio = 2026, // Año actual
+                                onSuccess = { onBack() } // Vuelve al listado automáticamente
+                            )
+                        } else {
+                            // ==========================================================
+                            // CASO B: EL USUARIO QUIERE GUARDAR UNA META DE AHORRO
+                            // ==========================================================
+                            if (nombreObjetivo.isNotBlank()) {
+                                authViewModel.guardarMetaEnBBDD(
+                                    context = context,
+                                    nombre = nombreObjetivo,
+                                    objetivo = montoDouble,
+                                    fechaLimite = null,
+                                    onSuccess = { onBack() }
+                                )
+                            } else {
+                                // Podrías mostrar un Toast pidiendo el nombre de la meta
+                            }
+                        }
                     }
                 },
                 modifier = Modifier
@@ -109,7 +131,7 @@ fun NuevoObjetivoScreen(onBack: () -> Unit, authViewModel: AuthViewModel = viewM
                         .background(Color(0xFFF9F9F9), RoundedCornerShape(15.dp)), // Fondo pastel para ampliar la zona de click
                     shape = RoundedCornerShape(15.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = ZenitGreen,
+                        focusedBorderColor = verdeOscuro,
                         unfocusedBorderColor = Color.LightGray.copy(alpha = 0.5f),
                         focusedContainerColor = Color(0xFFF9F9F9),
                         unfocusedContainerColor = Color(0xFFF9F9F9)
@@ -138,7 +160,7 @@ fun NuevoObjetivoScreen(onBack: () -> Unit, authViewModel: AuthViewModel = viewM
                 },
                 colors = OutlinedTextFieldDefaults.colors(
                     unfocusedBorderColor = Color.LightGray,
-                    focusedBorderColor = ZenitGreen // Añadido para consistencia
+                    focusedBorderColor = verdeOscuro // Añadido para consistencia
                 ),
                 singleLine = true // Esto ya ayuda a reducir el padding vertical
             )
@@ -193,7 +215,7 @@ fun NuevoObjetivoScreen(onBack: () -> Unit, authViewModel: AuthViewModel = viewM
                         checked = recordatorio,
                         onCheckedChange = { recordatorio = it },
                         modifier = Modifier.scale(0.8f),
-                        colors = SwitchDefaults.colors(checkedTrackColor = ZenitLightGreen)
+                        colors = SwitchDefaults.colors(checkedTrackColor = verdeClaro)
                     )
                 }
             }
@@ -217,11 +239,11 @@ fun CajaFrecuencia(
             .clickable { onClick() },
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (seleccionado) ZenitLightGreen else Color.White
+            containerColor = if (seleccionado) verdeClaro else Color.White
         ),
         border = BorderStroke(
             width = 1.dp,
-            color = if (seleccionado) ZenitLightGreen else Color.LightGray.copy(alpha = 0.5f)
+            color = if (seleccionado) verdeClaro else Color.LightGray.copy(alpha = 0.5f)
         )
     ) {
         Column(

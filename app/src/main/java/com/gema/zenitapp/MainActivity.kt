@@ -1,23 +1,29 @@
 package com.gema.zenitapp
 
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.gema.zenitapp.ui.theme.ZenitAppTheme
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.gema.zenitapp.viewmodel.AuthViewModel
 
 class MainActivity : ComponentActivity() {
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             ZenitAppTheme {
                 val navController = rememberNavController()
+                val authViewModel: AuthViewModel = viewModel()
 
                 NavHost(navController = navController, startDestination = "carga") {
 
@@ -55,28 +61,24 @@ class MainActivity : ComponentActivity() {
 
                     composable("inicio") {
                         InicioScreen(
-                            onMenuClick = { /* Lógica menú */ },
+                            onMenuClick = { navController.navigate("hamburguesa") },
                             onNavigateToMovimientos = { navController.navigate("movimientos") },
                             onNavigateToAnalisis = { navController.navigate("analisis") },
                             onNavigateToObjetivos = { navController.navigate("objetivos") },
-                            // ASEGÚRATE DE QUE SE LLAMA ASÍ:
                             onNavigateToNuevoMovimiento = { navController.navigate("nuevo_movimiento") }
                         )
                     }
 
-                    composable("hamburguesa") {
+                    composable("menu_hamburguesa") {
                         HamburguesaScreen(
+                            authViewModel = authViewModel,
                             onBackClick = { navController.popBackStack() },
-                            onEditClick = { /* Lógica para editar perfil */ },
-                            onMenuOptionClick = { optionName ->
-                                // Manejar clics en el menú, ej. navegar a Categorías, cerrar sesión, etc.
-                                when (optionName) {
-                                    "Categorías" -> navController.navigate("categorias")
-                                    "Cerrar sesión" -> { /* Lógica para cerrar sesión, volver al login */
-                                    }
-
-                                    else -> { /* Otras opciones */
-                                    }
+                            onEditClick = { navController.navigate("editar_perfil") },
+                            onCategoriasClick = { navController.navigate("categorias_screen") },
+                            onNotificacionesClick = { navController.navigate("notificaciones_screen") },
+                            onLogoutSuccess = {
+                                navController.navigate("login") {
+                                    popUpTo("login") { inclusive = true }
                                 }
                             }
                         )
@@ -132,11 +134,12 @@ class MainActivity : ComponentActivity() {
 
 //@Preview(showBackground = true, showSystemUi = true)
 @Composable
-fun LoginPreview() {
+fun CargaScreenPreview() {
     ZenitAppTheme {
-        LoginScreen(onNavigateToSignUp = {}, onLoginSuccess = {})
+        CargaScreen(onNavigateToLogin = {})
     }
 }
+
 
 //@Preview(showBackground = true, showSystemUi = true)
 @Composable
@@ -149,31 +152,7 @@ fun RegistroPreview() {
     }
 }
 
-//@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun InicioScreenPreview() {
-    ZenitAppTheme {
-        InicioScreen(
-            onMenuClick = {},
-            onNavigateToMovimientos = {},
-            onNavigateToAnalisis = {},
-            onNavigateToObjetivos = {},
-            onNavigateToNuevoMovimiento = {} // <--- Cambiado con el nombre nuevo
-        )
-    }
-}
 
-//@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun HamburguesaScreenPreview() {
-    ZenitAppTheme {
-        HamburguesaScreen(
-            onBackClick = {},
-            onEditClick = {},
-            onMenuOptionClick = {}
-        )
-    }
-}
 
 //@Preview(showBackground = true, showSystemUi = true)
 @Composable
@@ -197,7 +176,7 @@ fun NuevoObjetivoScreenPreview() { // He añadido "Preview" al nombre para que n
     }
 }
 
-@Preview(showBackground = true, showSystemUi = true)
+/*@Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun MovimientosScreenPreview() { // He añadido "Preview" al nombre para que no choque con la original
     ZenitAppTheme {
@@ -209,17 +188,18 @@ fun MovimientosScreenPreview() { // He añadido "Preview" al nombre para que no 
             onNavigateToObjetivos = {},
         )
     }
-}
+}*/
 
 //@Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun NuevoMovimientoScreenPreview() { // He añadido "Preview" al nombre para que no choque con la original
     ZenitAppTheme {
-        NuevoMovimientoScreen(onBack = {})
+        //NuevoMovimientoScreen(onBack = {})
     }
 }
 
-//@Preview(showBackground = true, showSystemUi = true)
+/*
+@Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun AnalisisScreenPreview() {
     ZenitAppTheme {
@@ -230,12 +210,4 @@ fun AnalisisScreenPreview() {
             onNavigateToObjetivos = {}
         )
     }
-}
-
-//@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun CargaScreenPreview() {
-    ZenitAppTheme {
-        CargaScreen(onNavigateToLogin = {})
-    }
-}
+}*/

@@ -2,6 +2,7 @@ package com.gema.zenitapp
 
 import android.app.DatePickerDialog
 import android.os.Build
+import android.util.Log
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.BorderStroke
@@ -29,8 +30,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.gema.zenitapp.viewmodel.AuthViewModel
-import com.gema.zenitapp.ui.theme.ZenitGreen
-import com.gema.zenitapp.ui.theme.ZenitLightGreen
+import com.gema.zenitapp.ui.theme.verdeOscuro
+import com.gema.zenitapp.ui.theme.verdeClaro
 import com.gema.zenitapp.componentes.IconoSeleccionableCategoria
 import java.time.LocalDate
 import java.util.Calendar
@@ -126,7 +127,7 @@ fun NuevoMovimientoScreen(
                         .background(Color(0xFFF9F9F9), RoundedCornerShape(15.dp)),
                     shape = RoundedCornerShape(15.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = ZenitGreen,
+                        focusedBorderColor = verdeOscuro,
                         unfocusedBorderColor = Color.LightGray.copy(alpha = 0.5f),
                         focusedContainerColor = Color(0xFFF9F9F9),
                         unfocusedContainerColor = Color(0xFFF9F9F9)
@@ -162,12 +163,12 @@ fun NuevoMovimientoScreen(
                 shape = RoundedCornerShape(20.dp),
                 leadingIcon = {
                     IconButton(onClick = { datePickerDialog.show() }) {
-                        Icon(Icons.Default.CalendarToday, null, tint = ZenitGreen)
+                        Icon(Icons.Default.CalendarToday, null, tint = verdeOscuro)
                     }
                 },
                 colors = OutlinedTextFieldDefaults.colors(
                     unfocusedBorderColor = Color.LightGray,
-                    focusedBorderColor = ZenitGreen
+                    focusedBorderColor = verdeOscuro
                 )
             )
 
@@ -195,12 +196,12 @@ fun NuevoMovimientoScreen(
                 border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.5f))
             ) {
                 Row(Modifier.padding(16.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.NotificationsNone, null, tint = ZenitGreen, modifier = Modifier.size(28.dp))
+                    Icon(Icons.Default.NotificationsNone, null, tint = verdeOscuro, modifier = Modifier.size(28.dp))
                     Column(Modifier.padding(horizontal = 12.dp).weight(1f)) {
                         Text("Recordatorio", fontWeight = FontWeight.Bold)
                         Text("Avisar 2 días antes", fontSize = 12.sp, color = Color.Gray)
                     }
-                    Switch(checked = recordatorio, onCheckedChange = { recordatorio = it }, colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = ZenitLightGreen))
+                    Switch(checked = recordatorio, onCheckedChange = { recordatorio = it }, colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = verdeClaro))
                 }
             }
 
@@ -208,9 +209,12 @@ fun NuevoMovimientoScreen(
 
             Button(
                 onClick = {
+                    Log.d("ZENIT_DEBUG", "1. ¡Botón Guardar Pulsado!") // <-- LOG
                     val importeLimpio = importe.replace(",", ".").trim()
                     val montoDouble = importeLimpio.toDoubleOrNull() ?: 0.0
                     val tipoMovimiento = if (esGasto) "GASTO" else "INGRESO"
+
+                    Log.d("ZENIT_DEBUG", "2. Datos procesados -> Monto: $montoDouble, Desc: $nombreGasto, Tipo: $tipoMovimiento, CatID: $categoriaSeleccionadaId, Fecha: $fechaSeleccionada") // <-- LOG
 
                     // VALIDACIÓN CON FEEDBACK VISUAL
                     if (nombreGasto.isBlank()) {
@@ -221,6 +225,7 @@ fun NuevoMovimientoScreen(
                         Toast.makeText(context, "Por favor, selecciona una categoría", Toast.LENGTH_SHORT).show()
                         // Busca el final del validador dentro del Button en tu NuevoMovimientoScreen:
                     } else {
+                        Log.d("ZENIT_DEBUG", "3. Validaciones correctas. Llamando al ViewModel...") // <-- LOG
                         // Enviamos a AWS inyectando la fecha elegida del calendario
                         authViewModel.guardarMovimientoenBBDD(
                             context = context,
@@ -230,7 +235,7 @@ fun NuevoMovimientoScreen(
                             fechaElegida = fechaSeleccionada,
                             categoriaId = categoriaSeleccionadaId!!,
                             onSuccess = {
-                                // Primero actualizamos los movimientos del listado en segundo plano
+                                Log.d("ZENIT_DEBUG", "7. ¡Éxito en AWS! Refrescando lista y volviendo atrás") // <-- LOG
                                 authViewModel.obtenerMovimientosBBDD(context)
                                 // Segundo, volvemos atrás de forma segura en el hilo principal
                                 onBack()
@@ -241,7 +246,7 @@ fun NuevoMovimientoScreen(
                 enabled = !authViewModel.isLoading,
                 modifier = Modifier.fillMaxWidth().height(55.dp),
                 shape = RoundedCornerShape(30.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = ZenitGreen)
+                colors = ButtonDefaults.buttonColors(containerColor = verdeOscuro)
             ) {
                 if (authViewModel.isLoading) {
                     CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
@@ -256,7 +261,7 @@ fun NuevoMovimientoScreen(
 // MANTENEMOS COMPONENTES DE DISEÑO BASE FIJOS
 @Composable
 fun CabeceraSimple(titulo: String, onBack: () -> Unit) {
-    Box(modifier = Modifier.fillMaxWidth().background(ZenitLightGreen).padding(16.dp)) {
+    Box(modifier = Modifier.fillMaxWidth().background(verdeClaro).padding(16.dp)) {
         IconButton(onClick = onBack, modifier = Modifier.align(Alignment.CenterStart)) {
             Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color(0xFF0D5140))
         }
@@ -268,14 +273,14 @@ fun CabeceraSimple(titulo: String, onBack: () -> Unit) {
 fun SelectorDoble(opcion1: String, opcion2: String, seleccionado1: Boolean, onSeleccion: (Boolean) -> Unit, icono1: ImageVector? = null, icono2: ImageVector? = null) {
     Card(shape = RoundedCornerShape(15.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5))) {
         Row(Modifier.fillMaxWidth().padding(4.dp)) {
-            Box(Modifier.weight(1f).height(45.dp).background(if (seleccionado1) ZenitLightGreen else Color.Transparent, RoundedCornerShape(12.dp)).clickable { onSeleccion(true) }, contentAlignment = Alignment.Center) {
+            Box(Modifier.weight(1f).height(45.dp).background(if (seleccionado1) verdeClaro else Color.Transparent, RoundedCornerShape(12.dp)).clickable { onSeleccion(true) }, contentAlignment = Alignment.Center) {
                 Row {
                     if (icono1 != null) Icon(icono1, null, tint = if (seleccionado1) Color(0xFF0D5140) else Color.Gray, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(4.dp))
                     Text(opcion1, fontWeight = FontWeight.Bold, color = if (seleccionado1) Color(0xFF0D5140) else Color.Gray)
                 }
             }
-            Box(Modifier.weight(1f).height(45.dp).background(if (!seleccionado1) ZenitLightGreen else Color.Transparent, RoundedCornerShape(12.dp)).clickable { onSeleccion(false) }, contentAlignment = Alignment.Center) {
+            Box(Modifier.weight(1f).height(45.dp).background(if (!seleccionado1) verdeClaro else Color.Transparent, RoundedCornerShape(12.dp)).clickable { onSeleccion(false) }, contentAlignment = Alignment.Center) {
                 Row {
                     if (icono2 != null) Icon(icono2, null, tint = if (!seleccionado1) Color(0xFF0D5140) else Color.Gray, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(4.dp))

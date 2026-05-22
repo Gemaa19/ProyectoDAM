@@ -5,12 +5,13 @@ import com.gema.zenit.models.LoginUsuario
 import com.gema.zenit.models.RegistroUsuarios
 import com.gema.zenit.models.RespuestaAutenticacion
 import com.gema.zenit.models.RespuestaMeta
+import com.gema.zenit.models.RespuestaPresupuesto
 import com.gema.zenit.models.SolicitudCategoria
 import com.gema.zenit.models.SolicitudMeta
 import com.gema.zenit.models.SolicitudPresupuesto
 import com.gema.zenit.models.SolicitudTransaccion
 import com.gema.zenit.models.TransaccionResponse
-import com.gema.zenitapp.models.*
+import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.*
 
@@ -23,7 +24,7 @@ interface ZenitApiService {
     @POST("/auth/register")
     suspend fun registrar(
         @Body datos: RegistroUsuarios
-    ): Response<RespuestaAutenticacion>
+    ): Response<ResponseBody>
 
     @POST("/auth/login")
     suspend fun login(
@@ -53,8 +54,10 @@ interface ZenitApiService {
         @Body transaccion: SolicitudTransaccion
     ): Response<Any>
 
+    // CORRECCIÓN: Nombre cambiado de borrarTransaccion a eliminarTransaccion
+    // para que coincida exactamente con lo que busca tu AuthViewModel
     @DELETE("/transacciones/{id}")
-    suspend fun borrarTransaccion(
+    suspend fun eliminarTransaccion(
         @Header("Authorization") token: String,
         @Path("id") id: Long
     ): Response<Any>
@@ -90,7 +93,7 @@ interface ZenitApiService {
 
 
     // ==========================================
-    // 4. METAS / OBJETIVOS (Rutas protegidas)
+    // 4. METAS / OBJETIVOS / PRESUPUESTOS (Rutas unificadas de AWS)
     // ==========================================
 
     @GET("/metas")
@@ -119,27 +122,20 @@ interface ZenitApiService {
 
 
     // ==========================================
-    // 5. PRESUPUESTOS (Rutas protegidas)
+    // 5. PRESUPUESTOS INDEPENDIENTES (Opcionales)
     // ==========================================
+    // Nota: Déjalos solo si tu Ktor en AWS los gestiona en tablas y rutas
+    // distintas a las de la sección 4 (/metas).
 
     @GET("/presupuestos")
     suspend fun obtenerPresupuestos(
         @Header("Authorization") token: String
-    ): Response<List<SolicitudPresupuesto>> // Ajusta a tu modelo de respuesta si tienes uno específico
+    ): Response<List<RespuestaPresupuesto>>
+    // <-- Cambiado para recibir tu modelo real de salida
 
     @POST("/presupuestos")
     suspend fun guardarPresupuesto(
         @Header("Authorization") token: String,
         @Body presupuesto: SolicitudPresupuesto
     ): Response<Any>
-
-
-    // ==========================================
-    // 6. ESTADÍSTICAS / RESUMEN (Rutas protegidas)
-    // ==========================================
-
-    @GET("/stats/resumen")
-    suspend fun obtenerResumenEstadisticas(
-        @Header("Authorization") token: String
-    ): Response<ResumenEstadisticasResponse> // Asegúrate de crear este modelo en Android para tus tarjetas de saldo
 }

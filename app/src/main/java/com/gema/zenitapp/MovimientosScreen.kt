@@ -1,7 +1,10 @@
 package com.gema.zenitapp
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -18,13 +21,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.gema.zenit.models.TransaccionResponse
 import com.gema.zenitapp.componentes.BarraNavegacionInferior
 import com.gema.zenitapp.componentes.CabeceraPrincipal
-import com.gema.zenitapp.ui.theme.ZenitGreen
-import com.gema.zenitapp.ui.theme.ZenitLightGreen
+import com.gema.zenitapp.componentes.Movimiento // Importamos el modelo visual unificado
+import com.gema.zenitapp.ui.theme.colorBotonGeneral
+import com.gema.zenitapp.ui.theme.rosa
+import com.gema.zenitapp.ui.theme.verdeIconos
+import com.gema.zenitapp.ui.theme.verdeOscuro
+import com.gema.zenitapp.ui.theme.verdeTitulos
 import com.gema.zenitapp.viewmodel.AuthViewModel
 
+
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MovimientosScreen(
@@ -36,8 +44,7 @@ fun MovimientosScreen(
     authViewModel: AuthViewModel = viewModel()
 ) {
     val context = LocalContext.current
-
-    // Observamos las transacciones que ya traen la fecha de AWS
+    var filtroSeleccionado by remember { mutableStateOf("Todos") }
     val movimientosReales = authViewModel.listaMovimientos
 
     LaunchedEffect(Unit) {
@@ -46,6 +53,14 @@ fun MovimientosScreen(
 
     val totalIngresos = movimientosReales.filter { it.tipo == "INGRESO" }.sumOf { it.monto }
     val totalGastos = movimientosReales.filter { it.tipo == "GASTO" }.sumOf { it.monto }
+
+    val movimientosFiltrados = when (filtroSeleccionado) {
+        "Ingresos" -> movimientosReales.filter { it.tipo == "INGRESO" }
+        "Gastos" -> movimientosReales.filter { it.tipo == "GASTO" }
+        else -> movimientosReales
+    }
+
+    val transaccionesAgrupadas = movimientosFiltrados.groupBy { it.fecha }
 
     Scaffold(
         bottomBar = {
@@ -62,17 +77,22 @@ fun MovimientosScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(Color.White)
+                .background(Color.White),
+            horizontalAlignment = Alignment.CenterHorizontally // Centra el botón estático horizontalmente
         ) {
             CabeceraPrincipal(
                 titulo = "Movimientos",
+                tamañoLetra = 30,
                 onMenuClick = onMenuClick
             )
 
+            // Contenedor del listado: Ocupa el espacio disponible de forma elástica
             LazyColumn(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f), // CORRECCIÓN: Deja libre el fondo para que el botón no se mueva
                 horizontalAlignment = Alignment.CenterHorizontally,
-                contentPadding = PaddingValues(bottom = 16.dp)
+                contentPadding = PaddingValues(bottom = 8.dp)
             ) {
                 // TARJETAS SUPERIORES DINÁMICAS
                 item {
@@ -81,8 +101,8 @@ fun MovimientosScreen(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         val mod = Modifier.weight(1f)
-                        TarjetaMovimientoResumen(mod, "Ingresos", "+${String.format("%.2f", totalIngresos)}€", Icons.Default.ArrowUpward, ZenitGreen)
-                        TarjetaMovimientoResumen(mod, "Gastos", "-${String.format("%.2f", totalGastos)}€", Icons.Default.ArrowDownward, Color.Red)
+                        TarjetaMovimientoResumen(mod, "Ingresos", "+${String.format("%.2f", totalIngresos)}€", Icons.Default.ArrowUpward, verdeIconos)
+                        TarjetaMovimientoResumen(mod, "Gastos", "-${String.format("%.2f", totalGastos)}€", Icons.Default.ArrowDownward, rosa)
                     }
                 }
 
@@ -93,114 +113,124 @@ fun MovimientosScreen(
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        FiltroChip("Todos", seleccionado = true)
+                        FiltroChipButton("Todos", seleccionado = (filtroSeleccionado == "Todos")) { filtroSeleccionado = "Todos" }
                         Spacer(Modifier.width(8.dp))
-                        FiltroChip("Ingresos", seleccionado = false)
+                        FiltroChipButton("Ingresos", seleccionado = (filtroSeleccionado == "Ingresos")) { filtroSeleccionado = "Ingresos" }
                         Spacer(Modifier.width(8.dp))
-                        FiltroChip("Gastos", seleccionado = false)
+                        FiltroChipButton("Gastos", seleccionado = (filtroSeleccionado == "Gastos")) { filtroSeleccionado = "Gastos" }
                     }
-                    Spacer(Modifier.height(20.dp))
+                    Spacer(Modifier.height(14.dp))
                 }
 
-                // LISTADO REAL CON CONTROL DE CARGA
+                // CONTROL DE CARGA ASÍNCRONO
                 if (authViewModel.isLoading) {
                     item {
-                        Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(color = ZenitGreen)
+                        Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = verdeOscuro)
                         }
                     }
-                } else if (movimientosReales.isEmpty()) {
+                } else if (movimientosFiltrados.isEmpty()) {
                     item {
                         Text(
-                            text = "No hay movimientos registrados",
+                            text = "No hay registros que coincidan con el filtro",
                             color = Color.Gray,
                             fontSize = 14.sp,
                             modifier = Modifier.padding(24.dp)
                         )
                     }
                 } else {
-                    items(movimientosReales) { transaccion: TransaccionResponse ->
-                        ItemGastoReal(transaccion = transaccion)
+                    transaccionesAgrupadas.forEach { (fechaStr, listaDeEseDia) ->
+                        item { FilaFechaDinamica(fechaSql = fechaStr) }
+
+                        items(listaDeEseDia) { transaccion ->
+                            val esIngreso = transaccion.tipo == "INGRESO"
+
+                            val iconoCategoria = when (transaccion.categoriaId) {
+                                1L -> Icons.Default.Home
+                                2L -> Icons.Default.ElectricBolt
+                                3L -> Icons.Default.DirectionsCar
+                                4L -> Icons.Default.Restaurant
+                                else -> Icons.Default.CreditCard
+                            }
+
+                            val movVisual = Movimiento(
+                                nombre = transaccion.descripcion ?: "Movimiento general",
+                                categoria = when (transaccion.categoriaId) {
+                                    1L -> "Hogar"
+                                    2L -> "Servicios"
+                                    3L -> "Transporte"
+                                    4L -> "Comida"
+                                    else -> "General"
+                                },
+                                cantidad = "${if (esIngreso) "+" else "-"}${String.format("%.2f", transaccion.monto)}€",
+                                esIngreso = esIngreso,
+                                icono = if (esIngreso) Icons.Default.Payments else iconoCategoria,
+                                color = Color(0xFF90A4AE)
+                            )
+
+                            ItemGasto(
+                                movimiento = movVisual,
+                                onEditarClick = { /* Próxima funcionalidad */ },
+                                onEliminarClick = { /* Próxima funcionalidad */ }
+                            )
+                        }
                     }
                 }
+            } // El LazyColumn termina aquí y ya NO contiene al botón
 
-                // BOTÓN "NUEVO MOVIMIENTO"
-                item {
-                    Spacer(Modifier.height(16.dp))
-                    BotonNuevoMovimiento(onClick = onNavigateToNuevoMovimiento)
+            // CORRECCIÓN CRÍTICA: El botón se renderiza fuera de la lista.
+            // Siempre se mantendrá visible pegado abajo independientemente de los registros.
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 32.dp, vertical = 12.dp), // Margen de separación limpio arriba del menú inferior
+                contentAlignment = Alignment.Center
+            ) {
+                Button(
+                    onClick = onNavigateToNuevoMovimiento,
+                    colors = ButtonDefaults.buttonColors(containerColor = colorBotonGeneral),
+                    border = BorderStroke(width = 4.dp, color = verdeTitulos),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier
+                        .height(50.dp)
+                        .fillMaxWidth(0.8f)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AddCircleOutline,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Añadir movimiento",
+                        color = Color.White,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
         }
     }
 }
 
+// NUEVO COMPONENTE: Convertido en botón interactivo con lambda clickable
 @Composable
-fun ItemGastoReal(transaccion: TransaccionResponse) {
-    val esIngreso = transaccion.tipo == "INGRESO"
-    val iconoDinamico = when (transaccion.categoriaId) {
-        1L -> Icons.Default.Home              // Hogar
-        2L -> Icons.Default.ElectricBolt      // Servicios
-        3L -> Icons.Default.DirectionsCar     // Transporte
-        4L -> Icons.Default.Restaurant        // Comida
-        else -> Icons.Default.ShoppingCart   // Por defecto
-    }
-
-    Card(
+fun FiltroChipButton(texto: String, seleccionado: Boolean, onClick: () -> Unit) {
+    Surface(
+        color = if (seleccionado) Color(0xFF0D5140) else Color.White,
+        shape = RoundedCornerShape(20.dp),
+        border = if (!seleccionado) BorderStroke(1.dp, Color.LightGray) else null,
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 6.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF9F9F9)),
-        shape = RoundedCornerShape(16.dp)
+            .height(36.dp)
+            .clickable { onClick() } // Detecta la selección y recarga la pantalla
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = if (esIngreso) ZenitLightGreen else Color(0xFFFFEBEE),
-                    modifier = Modifier.size(40.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = if (esIngreso) Icons.Default.Payments else iconoDinamico, // <-- Icono corregido
-                            contentDescription = null,
-                            tint = if (esIngreso) ZenitGreen else Color.Red,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                }
-
-                Spacer(Modifier.width(12.dp))
-
-                Column {
-                    Text(
-                        text = transaccion.descripcion ?: "Movimiento general",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp,
-                        color = Color.Black
-                    )
-
-                    // INCLUSIÓN DE LA FECHA: Pintamos la fecha de la BBDD debajo del nombre
-                    Text(
-                        text = transaccion.fecha,
-                        fontSize = 11.sp,
-                        color = Color.Gray,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            }
-
-            // Importe
+        Box(Modifier.padding(horizontal = 20.dp), contentAlignment = Alignment.Center) {
             Text(
-                text = "${if (esIngreso) "+" else "-"}${String.format("%.2f", transaccion.monto)}€",
-                fontWeight = FontWeight.ExtraBold,
-                fontSize = 16.sp,
-                color = if (esIngreso) ZenitGreen else Color.Black
+                text = texto,
+                color = if (seleccionado) Color.White else Color.Gray,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp
             )
         }
     }
@@ -223,42 +253,5 @@ fun TarjetaMovimientoResumen(modifier: Modifier, titulo: String, cantidad: Strin
             Text(titulo, color = Color.Gray, fontSize = 11.sp)
             Text(cantidad, fontWeight = FontWeight.Bold, fontSize = 17.sp, color = colorIcono)
         }
-    }
-}
-
-@Composable
-fun FiltroChip(texto: String, seleccionado: Boolean) {
-    Surface(
-        color = if (seleccionado) Color(0xFF0D5140) else Color.White,
-        shape = RoundedCornerShape(20.dp),
-        border = if (!seleccionado) BorderStroke(1.dp, Color.LightGray) else null,
-        modifier = Modifier.height(36.dp)
-    ) {
-        Box(Modifier.padding(horizontal = 20.dp), contentAlignment = Alignment.Center) {
-            Text(
-                texto,
-                color = if (seleccionado) Color.White else Color.Gray,
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp
-            )
-        }
-    }
-}
-
-@Composable
-fun BotonNuevoMovimiento(onClick: () -> Unit) {
-    OutlinedButton(
-        onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 32.dp, vertical = 16.dp)
-            .height(55.dp),
-        shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.5.dp, ZenitGreen),
-        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Gray)
-    ) {
-        Icon(Icons.Default.AddCircleOutline, null, modifier = Modifier.size(20.dp))
-        Spacer(Modifier.width(8.dp))
-        Text("Nuevo movimiento", fontSize = 16.sp, fontWeight = FontWeight.Medium)
     }
 }

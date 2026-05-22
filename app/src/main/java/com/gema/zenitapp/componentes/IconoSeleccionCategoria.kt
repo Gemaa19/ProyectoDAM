@@ -18,7 +18,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.gema.zenitapp.ui.theme.ZenitGreen
+import com.gema.zenitapp.ui.theme.verdeOscuro
 
 @Composable
 fun IconoSeleccionableCategoria(
@@ -37,7 +37,7 @@ fun IconoSeleccionableCategoria(
     ) {
         Surface(
             shape = RoundedCornerShape(15.dp),
-            color = if (estaSeleccionado) ZenitGreen else Color(0xFFF5F5F5),
+            color = if (estaSeleccionado) verdeOscuro else Color(0xFFF5F5F5),
             modifier = Modifier.size(50.dp)
         ) {
             Box(contentAlignment = Alignment.Center) {
@@ -45,6 +45,6 @@ fun IconoSeleccionableCategoria(
             }
         }
         Spacer(Modifier.height(4.dp))
-        Text(nombre, fontSize = 12.sp, color = if (estaSeleccionado) ZenitGreen else Color.Gray, fontWeight = FontWeight.Medium)
+        Text(nombre, fontSize = 12.sp, color = if (estaSeleccionado) verdeOscuro else Color.Gray, fontWeight = FontWeight.Medium)
     }
 }
