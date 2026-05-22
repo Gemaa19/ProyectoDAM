@@ -1,6 +1,7 @@
 package com.gema.zenitapp
 
 import android.os.Build
+import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -51,7 +52,8 @@ fun InicioScreen(
     onNavigateToMovimientos: () -> Unit,
     onNavigateToAnalisis: () -> Unit,
     onNavigateToObjetivos: () -> Unit,
-    onNavigateToNuevoMovimiento: () -> Unit,
+    // 💡 CAMBIO AQUÍ: Ahora el callback acepta el ID del movimiento a editar (si es null, es que es uno nuevo)
+    onNavigateToNuevoMovimiento: (Long?) -> Unit,
     authViewModel: AuthViewModel = viewModel()
 ) {
     val context = LocalContext.current
@@ -95,7 +97,8 @@ fun InicioScreen(
 
             // Si no hay datos, mostramos el estado vacío ocupando el resto de la pantalla
             if (sinDatos) {
-                EstadoVacioInicio(onAgregarClick = onNavigateToNuevoMovimiento)
+                // 💡 CAMBIO: Le pasamos null porque es un movimiento nuevo de paquete
+                EstadoVacioInicio(onAgregarClick = { onNavigateToNuevoMovimiento(null) })
             } else {
                 // ==========================================
                 // BLOQUE FIJO 2: Indicadores y tarjetas (No se mueven)
@@ -107,7 +110,13 @@ fun InicioScreen(
                     gastos = totalGastos,
                     saldo = saldoMensual
                 )
-
+                HorizontalDivider(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 20.dp, start = 24.dp, end = 24.dp), // Alineado con los márgenes de tus tarjetas
+                    thickness = 1.dp,
+                    color = Color(0xFFE5E7EB) // Un gris clarito y limpio (estilo Tailwind/Pastel)
+                )
                 // ==========================================
                 // BLOQUE CON SCROLL: Solo los últimos movimientos
                 // ==========================================
@@ -123,7 +132,6 @@ fun InicioScreen(
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 18.sp,
                             color = verdeOscuro,
-                            fontFamily = FontFamily.Monospace,
                             modifier = Modifier.padding(start = 24.dp, top = 24.dp, bottom = 8.dp)
                         )
                     }
@@ -159,7 +167,18 @@ fun InicioScreen(
                                 color = Color(0xFF90A4AE)
                             )
 
-                            ItemGasto(movimiento = movVisual, onEditarClick = {}, onEliminarClick = {})
+                            ItemGasto(
+                                movimiento = movVisual,
+                                onEditarClick = {
+                                    // 💡 SOLUCIÓN: Usamos el callback de la pantalla pasándole el ID real
+                                    onNavigateToNuevoMovimiento(transaccion.id)
+                                },
+                                onEliminarClick = {
+                                    authViewModel.eliminarMovimientoBBDD(context, transaccion.id) {
+                                        Toast.makeText(context, "Movimiento eliminado", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            )
                         }
                     }
 

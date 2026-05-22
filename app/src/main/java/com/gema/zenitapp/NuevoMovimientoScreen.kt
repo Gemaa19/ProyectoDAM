@@ -40,27 +40,41 @@ import java.util.Calendar
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NuevoMovimientoScreen(
+    movimientoId: Long? = null, // 💡 NUEVO: Si llega un ID, la pantalla pasa automáticamente a modo EDICIÓN
     onBack: () -> Unit,
     authViewModel: AuthViewModel = viewModel()
 ) {
     val context = LocalContext.current
 
-    // ESTADOS REACTIVOS
+    // ESTADOS REACTIVOS BASE
     var esGasto by remember { mutableStateOf(true) }
     var esFijo by remember { mutableStateOf(true) }
     var importe by remember { mutableStateOf("") }
     var nombreGasto by remember { mutableStateOf("") }
     var recordatorio by remember { mutableStateOf(false) }
-
-    // NUEVO: Estado para almacenar la fecha elegida (Inicia con el día de hoy en formato YYYY-MM-DD)
     var fechaSeleccionada by remember { mutableStateOf(LocalDate.now().toString()) }
+    var categoriaSeleccionadaId by remember { mutableStateOf<Long?>(null) }
 
-    // Configuración del DatePickerDialog Nativo de Android
+    // 💡 NUEVO: Si estamos editando, buscamos el movimiento en la lista local y rellenamos los campos
+    LaunchedEffect(movimientoId) {
+        if (movimientoId != null) {
+            val movAEditar = authViewModel.transaccionesReales.find { it.id == movimientoId }
+            if (movAEditar != null) {
+                nombreGasto = movAEditar.descripcion ?: ""
+                importe = movAEditar.monto.toString()
+                esGasto = movAEditar.tipo == "GASTO"
+                fechaSeleccionada = movAEditar.fecha
+                categoriaSeleccionadaId = movAEditar.categoriaId
+                // Nota: si manejas la propiedad "fijo" o "recordatorio" en tu modelo, las rellenarías aquí
+            }
+        }
+    }
+
+    // Configuración del DatePickerDialog Nativo
     val calendarioLogico = Calendar.getInstance()
     val datePickerDialog = DatePickerDialog(
         context,
         { _, anyo, mes, dia ->
-            // Corregimos el mes (+1) porque Calendar los cuenta de 0 a 11
             val mesFormateado = String.format("%02d", mes + 1)
             val diaFormateado = String.format("%02d", dia)
             fechaSeleccionada = "$anyo-$mesFormateado-$diaFormateado"
@@ -70,17 +84,17 @@ fun NuevoMovimientoScreen(
         calendarioLogico.get(Calendar.DAY_OF_MONTH)
     )
 
-    // Almacena el ID de la categoría seleccionada por el usuario
-    var categoriaSeleccionadaId by remember { mutableStateOf<Long?>(null) }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.White)
             .verticalScroll(rememberScrollState())
     ) {
-        // CABECERA
-        CabeceraSimple("Nuevo movimiento", onBack)
+        // 💡 CABECERA DINÁMICA: Cambia el título según si el ID existe o no
+        CabeceraSimple(
+            titulo = if (movimientoId == null) "Nuevo movimiento" else "Editar movimiento",
+            onBack = onBack
+        )
 
         Column(modifier = Modifier.padding(20.dp)) {
 
@@ -151,11 +165,11 @@ fun NuevoMovimientoScreen(
 
             Spacer(Modifier.height(15.dp))
 
-            // SECCIÓN NUEVA: SELECCIÓN DE FECHA (Sustituye a Frecuencia)
+            // SECCIÓN SELECCIÓN DE FECHA
             Text("Fecha del movimiento", fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 8.dp))
             OutlinedTextField(
                 value = fechaSeleccionada,
-                onValueChange = {}, // Bloqueado para obligar a usar el calendario flotante
+                onValueChange = {},
                 readOnly = true,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -174,7 +188,7 @@ fun NuevoMovimientoScreen(
 
             Spacer(Modifier.height(24.dp))
 
-            // CATEGORÍAS SELECCIONABLES (ANCLADAS A LAS 4 SOLICITADAS)
+            // CATEGORÍAS SELECCIONABLES
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text("Categorías", fontWeight = FontWeight.Bold)
             }
@@ -207,40 +221,51 @@ fun NuevoMovimientoScreen(
 
             Spacer(Modifier.height(30.dp))
 
+            // BOTÓN GUARDAR DINÁMICO
             Button(
                 onClick = {
-                    Log.d("ZENIT_DEBUG", "1. ¡Botón Guardar Pulsado!") // <-- LOG
                     val importeLimpio = importe.replace(",", ".").trim()
                     val montoDouble = importeLimpio.toDoubleOrNull() ?: 0.0
                     val tipoMovimiento = if (esGasto) "GASTO" else "INGRESO"
 
-                    Log.d("ZENIT_DEBUG", "2. Datos procesados -> Monto: $montoDouble, Desc: $nombreGasto, Tipo: $tipoMovimiento, CatID: $categoriaSeleccionadaId, Fecha: $fechaSeleccionada") // <-- LOG
-
-                    // VALIDACIÓN CON FEEDBACK VISUAL
                     if (nombreGasto.isBlank()) {
                         Toast.makeText(context, "Por favor, introduce una descripción", Toast.LENGTH_SHORT).show()
                     } else if (montoDouble <= 0.0) {
                         Toast.makeText(context, "Por favor, introduce un importe válido", Toast.LENGTH_SHORT).show()
                     } else if (categoriaSeleccionadaId == null) {
                         Toast.makeText(context, "Por favor, selecciona una categoría", Toast.LENGTH_SHORT).show()
-                        // Busca el final del validador dentro del Button en tu NuevoMovimientoScreen:
                     } else {
-                        Log.d("ZENIT_DEBUG", "3. Validaciones correctas. Llamando al ViewModel...") // <-- LOG
-                        // Enviamos a AWS inyectando la fecha elegida del calendario
-                        authViewModel.guardarMovimientoenBBDD(
-                            context = context,
-                            monto = montoDouble,
-                            descripcion = nombreGasto,
-                            tipo = tipoMovimiento,
-                            fechaElegida = fechaSeleccionada,
-                            categoriaId = categoriaSeleccionadaId!!,
-                            onSuccess = {
-                                Log.d("ZENIT_DEBUG", "7. ¡Éxito en AWS! Refrescando lista y volviendo atrás") // <-- LOG
-                                authViewModel.obtenerMovimientosBBDD(context)
-                                // Segundo, volvemos atrás de forma segura en el hilo principal
-                                onBack()
-                            }
-                        )
+                        // 💡 LÓGICA DE GUARDADO / ACTUALIZACIÓN:
+                        if (movimientoId == null) {
+                            // Modo CREAR (Tu código original)
+                            authViewModel.guardarMovimientoenBBDD(
+                                context = context,
+                                monto = montoDouble,
+                                descripcion = nombreGasto,
+                                tipo = tipoMovimiento,
+                                fechaElegida = fechaSeleccionada,
+                                categoriaId = categoriaSeleccionadaId!!,
+                                onSuccess = {
+                                    authViewModel.obtenerMovimientosBBDD(context)
+                                    onBack()
+                                }
+                            )
+                        } else {
+                            // Modo EDITAR: Llama a la función PUT de tu ViewModel pasando el movimientoId
+                            authViewModel.editarMovimientoEnBBDD(
+                                context = context,
+                                id = movimientoId,
+                                monto = montoDouble,
+                                descripcion = nombreGasto,
+                                tipo = tipoMovimiento,
+                                fechaElegida = fechaSeleccionada,
+                                categoriaId = categoriaSeleccionadaId!!,
+                                onSuccess = {
+                                    authViewModel.obtenerMovimientosBBDD(context)
+                                    onBack()
+                                }
+                            )
+                        }
                     }
                 },
                 enabled = !authViewModel.isLoading,
@@ -251,7 +276,13 @@ fun NuevoMovimientoScreen(
                 if (authViewModel.isLoading) {
                     CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
                 } else {
-                    Text("Guardar movimiento", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    // Texto del botón adaptivo
+                    Text(
+                        text = if (movimientoId == null) "Guardar movimiento" else "Actualizar movimiento",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
                 }
             }
         }

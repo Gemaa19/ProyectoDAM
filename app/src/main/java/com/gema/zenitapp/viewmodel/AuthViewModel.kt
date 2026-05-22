@@ -3,6 +3,7 @@ package com.gema.zenitapp.viewmodel
 import android.content.Context
 import android.os.Build
 import android.util.Log
+import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -19,8 +20,10 @@ import com.gema.zenit.models.RegistroUsuarios
 import com.gema.zenit.models.RespuestaMeta
 import com.gema.zenit.models.RespuestaPresupuesto
 import com.gema.zenit.models.SolicitudMeta
+import com.gema.zenit.models.SolicitudPresupuesto
 import com.gema.zenit.models.SolicitudTransaccion
 import com.gema.zenit.models.TransaccionResponse
+import com.gema.zenitapp.api.ZenitApiService
 
 // Modelo local auxiliar para guardar la sesión activa en el Frontend
 data class UsuarioSesion(
@@ -322,7 +325,7 @@ class AuthViewModel : ViewModel() {
                     val headerToken = "Bearer $token"
 
                     // Construimos el modelo exacto que espera tu interfaz ZenitApiService
-                    val nuevoPresupuesto = com.gema.zenit.models.SolicitudPresupuesto(
+                    val nuevoPresupuesto = SolicitudPresupuesto(
                         montoLimite = montoLimite,
                         categoriaId = categoriaId,
                         mes = mes,
@@ -343,6 +346,64 @@ class AuthViewModel : ViewModel() {
                 Log.e("AuthViewModel", "Excepción de red en presupuestos: ${e.message}")
             } finally {
                 withContext(Dispatchers.Main) { isLoading = false }
+            }
+        }
+    }
+
+    // 💡 NUEVO: Método para actualizar un movimiento existente en AWS
+    fun editarMovimientoEnBBDD(
+        context: Context,
+        id: Long,                  // ID del movimiento que vamos a modificar
+        monto: Double,
+        descripcion: String,
+        tipo: String,
+        fechaElegida: String,      // YYYY-MM-DD del calendario
+        categoriaId: Long,
+        onSuccess: () -> Unit      // Callback para volver a InicioScreen y refrescar
+    ) {
+        viewModelScope.launch {
+            isLoading = true // Activa el CircularProgressIndicator del botón
+            try {
+                // 1. Recuperar el token JWT que guardaste en el Login (ej. en SharedPreferences o DataStore)
+                val sharedPreferences = context.getSharedPreferences("zenit_prefs", Context.MODE_PRIVATE)
+                val token = sharedPreferences.getString("token_jwt", null)
+
+                if (token == null) {
+                    Toast.makeText(context, "Error: Sesión expirada", Toast.LENGTH_SHORT).show()
+                    isLoading = false
+                    return@launch
+                }
+
+                // 2. Preparar el objeto con los datos modificados (Tu DTO de la app)
+                val movimientoEditado = SolicitudTransaccion( // Ajusta el nombre a tu clase modelo (ej. SolicitudMovimiento o TransaccionRequest)
+                    monto = monto,
+                    descripcion = descripcion,
+                    tipo = tipo,
+                    fecha = fechaElegida,
+                    categoriaId = categoriaId
+                )
+
+                // 3. Lanzar la petición HTTP PUT al backend de AWS
+                // NOTA: Ajusta "tuApiRetrofit" al nombre que tenga tu cliente de red en el ViewModel
+                val respuesta = RetrofitClient.instancia.editarTransaccion(
+                    token = "Bearer $token",
+                    id = id,
+                    transaccion = movimientoEditado
+                )
+
+                if (respuesta.isSuccessful) {
+                    Log.d("ZENIT_DEBUG", "¡Movimiento actualizado con éxito en AWS!")
+                    onSuccess() // Ejecuta el refresco de pantalla
+                } else {
+                    Log.e("ZENIT_DEBUG", "Fallo en el servidor: ${respuesta.code()} - ${respuesta.errorBody()?.string()}")
+                    Toast.makeText(context, "No se pudo actualizar el movimiento", Toast.LENGTH_SHORT).show()
+                }
+
+            } catch (e: Exception) {
+                Log.e("ZENIT_DEBUG", "Error de red al editar: ${e.localizedMessage}")
+                Toast.makeText(context, "Error de conexión con el servidor", Toast.LENGTH_SHORT).show()
+            } finally {
+                isLoading = false // Apaga el cargando del botón
             }
         }
     }

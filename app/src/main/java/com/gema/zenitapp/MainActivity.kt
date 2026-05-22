@@ -7,7 +7,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -65,23 +64,39 @@ class MainActivity : ComponentActivity() {
                             onNavigateToMovimientos = { navController.navigate("movimientos") },
                             onNavigateToAnalisis = { navController.navigate("analisis") },
                             onNavigateToObjetivos = { navController.navigate("objetivos") },
-                            onNavigateToNuevoMovimiento = { navController.navigate("nuevo_movimiento") }
+                            onNavigateToNuevoMovimiento = { movimientoId ->
+                                if (movimientoId != null) {
+                                    // Si lleva ID, viajamos con el argumento a la pantalla de edición
+                                    navController.navigate("nuevo_movimiento?movimientoId=$movimientoId")
+                                } else {
+                                    // Si es null, navegamos a la pantalla limpia para crear
+                                    navController.navigate("nuevo_movimiento")
+                                }
+                            }
                         )
                     }
 
-                    composable("menu_hamburguesa") {
+                    composable("hamburguesa") {
                         HamburguesaScreen(
                             authViewModel = authViewModel,
                             onBackClick = { navController.popBackStack() },
                             onEditClick = { navController.navigate("editar_perfil") },
-                            onCategoriasClick = { navController.navigate("categorias_screen") },
-                            onNotificacionesClick = { navController.navigate("notificaciones_screen") },
+                            onCategoriasClick = { navController.navigate("categorias") },
+                            onNotificacionesClick = { navController.navigate("notificaciones") },
                             onLogoutSuccess = {
                                 navController.navigate("login") {
                                     popUpTo("login") { inclusive = true }
                                 }
                             }
                         )
+                    }
+
+                    composable ("categorias"){
+
+                    }
+
+                    composable ("notificaciones"){
+
                     }
 
                     composable("movimientos") {
