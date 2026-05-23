@@ -1,5 +1,6 @@
 package com.gema.zenitapp
 
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -22,13 +23,11 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.gema.zenitapp.componentes.BarraNavegacionInferior
 import com.gema.zenitapp.componentes.CabeceraPrincipal
-import com.gema.zenitapp.componentes.Movimiento
 import com.gema.zenitapp.ui.theme.colorBotonGeneral
 import com.gema.zenitapp.ui.theme.verdeFondo
 import com.gema.zenitapp.ui.theme.verdeOscuro
 import com.gema.zenitapp.ui.theme.verdeTitulos
 import com.gema.zenitapp.viewmodel.AuthViewModel
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,18 +36,17 @@ fun ObjetivosScreen(
     onNavigateToInicio: () -> Unit,
     onNavigateToMovimientos: () -> Unit,
     onNavigateToAnalisis: () -> Unit,
-    onNavigateToNuevoObjetivo: () -> Unit,
+    // 💡 CAMBIO: Ahora el callback propaga el ID y el tipo para saber qué editar
+    onNavigateToNuevoObjetivo: (id: Long?, tipo: String) -> Unit,
     authViewModel: AuthViewModel = viewModel()
 ) {
     val context = LocalContext.current
     var filtroSeleccionado by remember { mutableStateOf("Presupuestos") }
-
-    // SINTONIZACIÓN CON AWS: Consumimos las listas dinámicas reales del ViewModel
     val presupuestosReales = authViewModel.listaPresupuestos
     val metasReales = authViewModel.listaMetas
 
     LaunchedEffect(Unit) {
-        authViewModel.obtenerObjetivosBBDD(context) // Tu llamada síncrona para refrescar metas/presupuestos
+        authViewModel.obtenerObjetivosBBDD(context)
     }
 
     Scaffold(
@@ -71,7 +69,6 @@ fun ObjetivosScreen(
         ) {
             CabeceraPrincipal(titulo = "Objetivos", tamañoLetra = 35, onMenuClick = onMenuClick)
 
-            // FILTROS SUPERIORES
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.Center,
@@ -86,11 +83,8 @@ fun ObjetivosScreen(
                 }
             }
 
-            // LISTADO CON CONTROL DE CARGA Y SEPARACIÓN REFORZADA
             LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
+                modifier = Modifier.fillMaxWidth().weight(1f),
                 contentPadding = PaddingValues(bottom = 12.dp)
             ) {
                 if (authViewModel.isLoading) {
@@ -109,48 +103,38 @@ fun ObjetivosScreen(
                             }
                         } else {
                             items(presupuestosReales) { presupuesto ->
-                                // 1. OBTENEMOS LOS CAMPOS DE TU MODELO REAL 'RespuestaPresupuesto'
-                                val id = presupuesto.id
-                                val nombre = presupuesto.nombreCategoria ?: "Categoría"
-                                val limite = presupuesto.montoLimite
                                 val catId = presupuesto.categoriaId
-
-                                // 2. CÁLCULO DINÁMICO: Sumamos los gastos reales de AWS para esta categoría concreta
                                 val totalGastadoEnEstaCategoria = authViewModel.listaMovimientos
                                     .filter { it.tipo == "GASTO" && it.categoriaId == catId }
                                     .sumOf { it.monto }
 
-                                // 3. Calculamos el porcentaje para la barra de progreso elegante
-                                val porcentajeProgreso = if (limite > 0) (totalGastadoEnEstaCategoria / limite).toFloat() else 0f
-
-                                val colorBarraDinamica = when {
-                                    porcentajeProgreso >= 0.9f -> Color(0xFFB2130F) // Rojo peligro si agota el cupo
-                                    porcentajeProgreso >= 0.7f -> Color(0xFFFFB300) // Amarillo aviso
-                                    else -> verdeOscuro
-                                }
-
-                                val iconoDinamico = when (catId) {
-                                    1L -> Icons.Default.Home
-                                    2L -> Icons.Default.ElectricBolt
-                                    3L -> Icons.Default.DirectionsCar
-                                    4L -> Icons.Default.Restaurant
-                                    else -> Icons.Default.CreditCard
-                                }
+                                val porcentajeProgreso = if (presupuesto.montoLimite > 0) (totalGastadoEnEstaCategoria / presupuesto.montoLimite).toFloat() else 0f
 
                                 ItemObjetivoRealEstilizado(
-                                    nombre = nombre,
-                                    // Mostramos lo gastado real frente al límite que fijó el usuario
-                                    cantidadTexto = "${String.format("%.2f", totalGastadoEnEstaCategoria)}€ / ${String.format("%.2f", limite)}€",
+                                    nombre = presupuesto.nombreCategoria ?: "Categoría",
+                                    cantidadTexto = "${String.format("%.2f", totalGastadoEnEstaCategoria)}€ / ${String.format("%.2f", presupuesto.montoLimite)}€",
                                     progreso = porcentajeProgreso.coerceIn(0f, 1f),
-                                    icono = iconoDinamico,
-                                    colorBarra = colorBarraDinamica,
-                                    onEditarClick = { /* Abrir modificar pasándole id */ },
-                                    onEliminarClick = { /* Llamar a eliminar pasándole id */ }
+                                    esProgresoCero = totalGastadoEnEstaCategoria == 0.0,
+                                    icono = when (catId) {
+                                        1L -> Icons.Default.Home
+                                        2L -> Icons.Default.ElectricBolt
+                                        3L -> Icons.Default.DirectionsCar
+                                        4L -> Icons.Default.Restaurant
+                                        else -> Icons.Default.CreditCard
+                                    },
+                                    colorBarra = if (porcentajeProgreso >= 0.9f) Color(0xFFB2130F) else verdeOscuro,
+                                    // 💡 SOLUCIÓN EDITAR PRESUPUESTO
+                                    onEditarClick = { onNavigateToNuevoObjetivo(presupuesto.id, "PRESUPUESTO") },
+                                    // 💡 SOLUCIÓN BORRAR PRESUPUESTO
+                                    onEliminarClick = {
+                                        authViewModel.eliminarPresupuestoBBDD(context, presupuesto.id) {
+                                            Toast.makeText(context, "Presupuesto eliminado", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
                                 )
                             }
                         }
                     } else {
-                        // SECCIÓN PARA LAS METAS (Sintonizada con tu RespuestaMeta)
                         if (metasReales.isEmpty()) {
                             item {
                                 Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
@@ -159,37 +143,35 @@ fun ObjetivosScreen(
                             }
                         } else {
                             items(metasReales) { meta ->
-                                val id = meta.id
-                                val nombre = meta.nombre ?: "Meta sin nombre"
-                                val ahorrado = meta.ahorrado
-                                val objetivo = meta.objetivo
-
-                                // Adaptamos el progreso de la meta (0-100) a la escala de Compose (0.0-1.0)
-                                val porcentajeProgreso = (meta.progreso / 100.0).toFloat()
-
                                 ItemObjetivoRealEstilizado(
-                                    nombre = nombre,
-                                    cantidadTexto = "${String.format("%.2f", ahorrado)}€ / ${String.format("%.2f", objetivo)}€",
-                                    progreso = porcentajeProgreso.coerceIn(0f, 1f),
+                                    nombre = meta.nombre ?: "Meta sin nombre",
+                                    cantidadTexto = "${String.format("%.2f", meta.ahorrado)}€ / ${String.format("%.2f", meta.objetivo)}€",
+                                    progreso = (meta.progreso / 100.0).toFloat().coerceIn(0f, 1f),
+                                    esProgresoCero = meta.ahorrado == 0.0,
                                     icono = Icons.Default.TrackChanges,
-                                    colorBarra = Color(0xFF029B09), // Verde ahorro fijo
-                                    onEditarClick = { /* Abrir modificar pasándole id */ },
-                                    onEliminarClick = { /* Llamar a eliminar pasándole id */ }
+                                    colorBarra = Color(0xFF029B09),
+                                    // 💡 SOLUCIÓN EDITAR META
+                                    onEditarClick = { onNavigateToNuevoObjetivo(meta.id, "META") },
+                                    // 💡 SOLUCIÓN BORRAR META
+                                    onEliminarClick = {
+                                        authViewModel.eliminarMetaBBDD(context, meta.id) {
+                                            Toast.makeText(context, "Meta de ahorro eliminada", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
                                 )
                             }
                         }
                     }
                 }
             }
-            // BOTÓN FIJO EN EL PIE DE LA PANTALLA
+
+            // BOTÓN AÑADIR NUEVO OBJETIVO LIMPIO
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 32.dp, vertical = 14.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = 14.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Button(
-                    onClick = onNavigateToNuevoObjetivo,
+                    onClick = { onNavigateToNuevoObjetivo(null, "CLEAN") },
                     colors = ButtonDefaults.buttonColors(containerColor = colorBotonGeneral),
                     border = BorderStroke(width = 4.dp, color = verdeTitulos),
                     shape = RoundedCornerShape(10.dp),
@@ -204,12 +186,12 @@ fun ObjetivosScreen(
     }
 }
 
-// NUEVO DISEÑO: Tarjeta expandida con mayor espacio de respiración (75.dp)
 @Composable
 fun ItemObjetivoRealEstilizado(
     nombre: String,
     cantidadTexto: String,
     progreso: Float,
+    esProgresoCero: Boolean,
     icono: androidx.compose.ui.graphics.vector.ImageVector,
     colorBarra: Color,
     onEditarClick: () -> Unit,
@@ -218,8 +200,8 @@ fun ItemObjetivoRealEstilizado(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(75.dp) // NUEVO: Subido de 65.dp a 75.dp para darle más altura y presencia
-            .padding(horizontal = 20.dp, vertical = 6.dp), // NUEVO: Más espacio libre entre tarjetas consecutivas
+            .height(90.dp) // Incrementado para albergar perfectamente las 3 líneas verticales
+            .padding(horizontal = 20.dp, vertical = 6.dp),
         shape = RoundedCornerShape(22.dp),
         elevation = CardDefaults.cardElevation(5.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)
@@ -228,10 +210,10 @@ fun ItemObjetivoRealEstilizado(
             modifier = Modifier.fillMaxSize(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Contenedor izquierdo del icono adaptado a la nueva altura
+            // Contenedor izquierdo del icono
             Box(
                 modifier = Modifier
-                    .padding(5.dp)
+                    .padding(6.dp)
                     .fillMaxHeight()
                     .width(62.dp)
                     .background(color = verdeFondo, shape = RoundedCornerShape(18.dp)),
@@ -245,47 +227,40 @@ fun ItemObjetivoRealEstilizado(
                 )
             }
 
-            // Bloque de textos central con mayor separación vertical interna
+            // 💡 REESTRUCTURACIÓN: Todo alineado en vertical (Nombre -> Dinero -> Barra)
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(start = 16.dp, end = 12.dp),
-                verticalArrangement = Arrangement.Center
+                    .padding(start = 14.dp, end = 12.dp, top = 6.dp, bottom = 6.dp),
+                verticalArrangement = Arrangement.SpaceBetween
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = nombre,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp, // Letra un poco más grande
-                        color = Color(0xFF1A1A1A),
-                        maxLines = 1
-                    )
-                    Text(
-                        text = cantidadTexto,
-                        color = Color(0xFF9EA1A7),
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp,
-                        maxLines = 1
-                    )
-                }
+                Text(
+                    text = nombre,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                    color = Color(0xFF1A1A1A),
+                    maxLines = 1
+                )
 
-                // NUEVO: Mayor espacio de separación entre la fila de textos y la barra de progreso
-                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = cantidadTexto,
+                    color = Color(0xFF9EA1A7),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp,
+                    maxLines = 1
+                )
 
                 LinearProgressIndicator(
-                    progress = { progreso },
-                    modifier = Modifier.fillMaxWidth().height(7.dp), // Barra ligeramente más gruesa
-                    color = colorBarra,
+                    progress = { if (esProgresoCero) 0f else progreso },
+                    modifier = Modifier.fillMaxWidth().height(6.dp),
+                    // 💡 Si el dinero es 0, la pista se vuelve completamente gris uniforme
+                    color = if (esProgresoCero) Color(0xFFF0F2F5) else colorBarra,
                     trackColor = Color(0xFFF0F2F5),
                     strokeCap = StrokeCap.Round
                 )
             }
 
-            // Botones de control compactados a la derecha
+            // Botones de control a la derecha intactos
             Row(
                 modifier = Modifier.padding(end = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
@@ -301,7 +276,6 @@ fun ItemObjetivoRealEstilizado(
         }
     }
 }
-
 @Composable
 fun FiltroObjetivoChip(texto: String, seleccionado: Boolean, onClick: () -> Unit) {
     Surface(

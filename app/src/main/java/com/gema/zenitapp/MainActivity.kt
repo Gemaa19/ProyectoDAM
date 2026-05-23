@@ -7,11 +7,15 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.gema.zenitapp.ui.theme.ZenitAppTheme
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 import com.gema.zenitapp.viewmodel.AuthViewModel
 
 class MainActivity : ComponentActivity() {
@@ -23,6 +27,11 @@ class MainActivity : ComponentActivity() {
             ZenitAppTheme {
                 val navController = rememberNavController()
                 val authViewModel: AuthViewModel = viewModel()
+                val context = LocalContext.current
+
+                LaunchedEffect(Unit) {
+                    authViewModel.cargarSesionLocal(context)
+                }
 
                 NavHost(navController = navController, startDestination = "carga") {
 
@@ -36,6 +45,7 @@ class MainActivity : ComponentActivity() {
 
                     composable("login") {
                         LoginScreen(
+                            authViewModel = authViewModel,
                             onNavigateToSignUp = { navController.navigate("signup") },
                             onLoginSuccess = {
                                 navController.navigate("inicio") {
@@ -60,6 +70,7 @@ class MainActivity : ComponentActivity() {
 
                     composable("inicio") {
                         InicioScreen(
+                            authViewModel = authViewModel,
                             onMenuClick = { navController.navigate("hamburguesa") },
                             onNavigateToMovimientos = { navController.navigate("movimientos") },
                             onNavigateToAnalisis = { navController.navigate("analisis") },
@@ -80,23 +91,13 @@ class MainActivity : ComponentActivity() {
                         HamburguesaScreen(
                             authViewModel = authViewModel,
                             onBackClick = { navController.popBackStack() },
-                            onEditClick = { navController.navigate("editar_perfil") },
-                            onCategoriasClick = { navController.navigate("categorias") },
-                            onNotificacionesClick = { navController.navigate("notificaciones") },
+                            // 💡 SOLUCIÓN: Quitamos 'onEditClick' porque ahora el lápiz abre el diálogo interno
                             onLogoutSuccess = {
                                 navController.navigate("login") {
                                     popUpTo("login") { inclusive = true }
                                 }
                             }
                         )
-                    }
-
-                    composable ("categorias"){
-
-                    }
-
-                    composable ("notificaciones"){
-
                     }
 
                     composable("movimientos") {
@@ -109,15 +110,28 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
+                    // 💡 CORRECCIÓN CRUCIAL EN TU MAINACTIVITY.KT
+                    // En tu MainActivity.kt actualiza estas dos declaraciones en el NavHost:
+
                     composable("objetivos") {
                         ObjetivosScreen(
+                            authViewModel = authViewModel,
                             onMenuClick = { navController.navigate("hamburguesa") },
                             onNavigateToInicio = { navController.navigate("inicio") },
                             onNavigateToMovimientos = { navController.navigate("movimientos") },
                             onNavigateToAnalisis = { navController.navigate("analisis") },
-                            onNavigateToNuevoObjetivo = { navController.navigate("nuevo_objetivo") }
+                            // 💡 MAPEAMOS LOS DESTINOS DEPENDIENDO DE SI LLEVAN ID O NO
+                            onNavigateToNuevoObjetivo = { id, tipo ->
+                                if (id != null) {
+                                    navController.navigate("nuevo_objetivo?id=$id&tipo=$tipo")
+                                } else {
+                                    navController.navigate("nuevo_objetivo")
+                                }
+                            }
                         )
                     }
+
+
 
                     composable("analisis") {
                         AnalisisScreen(
@@ -128,19 +142,23 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-                    composable("nuevo_movimiento") {
-                        NuevoMovimientoScreen(
-                            onBack = { navController.popBackStack() }
+                    composable(
+                        route = "nuevo_objetivo?id={id}&tipo={tipo}",
+                        arguments = listOf(
+                            navArgument("id") { type = NavType.StringType; nullable = true; defaultValue = null },
+                            navArgument("tipo") { type = NavType.StringType; nullable = true; defaultValue = null }
                         )
-                    }
+                    ) { backStackEntry ->
+                        val idStr = backStackEntry.arguments?.getString("id")
+                        val tipoStr = backStackEntry.arguments?.getString("tipo")
 
-                    composable("nuevo_objetivo") {
                         NuevoObjetivoScreen(
+                            objetivoId = idStr?.toLongOrNull(),
+                            tipoObjetivo = tipoStr,
+                            authViewModel = authViewModel,
                             onBack = { navController.popBackStack() }
                         )
                     }
-
-
                 }
             }
         }
@@ -169,7 +187,7 @@ fun RegistroPreview() {
 
 
 
-//@Preview(showBackground = true, showSystemUi = true)
+/*@Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun ObjetivosScreenPreview() { // <--- Nombre actualizado
     ZenitAppTheme {
@@ -181,15 +199,15 @@ fun ObjetivosScreenPreview() { // <--- Nombre actualizado
             onNavigateToNuevoObjetivo = { }
         )
     }
-}
+}*/
 
-//@Preview(showBackground = true, showSystemUi = true)
+/*@Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun NuevoObjetivoScreenPreview() { // He añadido "Preview" al nombre para que no choque con la original
     ZenitAppTheme {
         NuevoObjetivoScreen(onBack = {})
     }
-}
+}*/
 
 /*@Preview(showBackground = true, showSystemUi = true)
 @Composable

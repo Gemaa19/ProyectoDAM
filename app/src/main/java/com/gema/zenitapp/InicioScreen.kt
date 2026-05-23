@@ -115,7 +115,7 @@ fun InicioScreen(
                         .fillMaxWidth()
                         .padding(top = 20.dp, start = 24.dp, end = 24.dp), // Alineado con los márgenes de tus tarjetas
                     thickness = 1.dp,
-                    color = Color(0xFFE5E7EB) // Un gris clarito y limpio (estilo Tailwind/Pastel)
+                    color = verdeGrisaceo // Un gris clarito y limpio (estilo Tailwind/Pastel)
                 )
                 // ==========================================
                 // BLOQUE CON SCROLL: Solo los últimos movimientos

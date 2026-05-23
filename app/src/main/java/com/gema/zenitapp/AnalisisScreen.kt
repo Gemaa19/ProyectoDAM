@@ -60,9 +60,10 @@ fun AnalisisScreen(
         authViewModel.obtenerMovimientosBBDD(context)
     }
 
-    val movimientosReales = authViewModel.transaccionesReales
+    // 💡 SOLUCIÓN: Cambiamos .transaccionesReales (que solo tiene 10) por .listaMovimientos (el histórico completo)
+    val movimientosReales = authViewModel.listaMovimientos
 
-    // FILTRADO DINÁMICO CRUZADO: Mes seleccionado + Año seleccionado
+    // El resto de tus filtros cruzados se queda exactamente igual...
     val movimientosDelMes = movimientosReales.filter { transaccion ->
         try {
             val fechaTransaccion = LocalDate.parse(transaccion.fecha)
@@ -78,12 +79,14 @@ fun AnalisisScreen(
     val totalGastosMes = gastosFiltrados.sumOf { it.monto }
 
     val gastoHogar = gastosFiltrados.filter { it.categoriaId == 1L }.sumOf { it.monto }
-    val g託toServicios = gastosFiltrados.filter { it.categoriaId == 2L }.sumOf { it.monto }
+    // 💡 CORRECCIÓN ORTOGRÁFICA:
+    val gastoServicios = gastosFiltrados.filter { it.categoriaId == 2L }.sumOf { it.monto }
+
     val gastoTransporte = gastosFiltrados.filter { it.categoriaId == 3L }.sumOf { it.monto }
     val gastoComida = gastosFiltrados.filter { it.categoriaId == 4L }.sumOf { it.monto }
 
     val pctHogar = if (totalGastosMes > 0) (gastoHogar / totalGastosMes).toFloat() else 0f
-    val pctServicios = if (totalGastosMes > 0) (g託toServicios / totalGastosMes).toFloat() else 0f
+    val pctServicios = if (totalGastosMes > 0) (gastoServicios / totalGastosMes).toFloat() else 0f
     val pctTransporte = if (totalGastosMes > 0) (gastoTransporte / totalGastosMes).toFloat() else 0f
     val pctComida = if (totalGastosMes > 0) (gastoComida / totalGastosMes).toFloat() else 0f
     val pctOtros = (1f - (pctHogar + pctServicios + pctTransporte + pctComida)).coerceAtLeast(0f)

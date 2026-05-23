@@ -1,6 +1,7 @@
 package com.gema.zenitapp
 
 import android.os.Build
+import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -26,6 +27,7 @@ import com.gema.zenitapp.componentes.CabeceraPrincipal
 import com.gema.zenitapp.componentes.Movimiento // Importamos el modelo visual unificado
 import com.gema.zenitapp.ui.theme.colorBotonGeneral
 import com.gema.zenitapp.ui.theme.rosa
+import com.gema.zenitapp.ui.theme.verdeGrisaceo
 import com.gema.zenitapp.ui.theme.verdeIconos
 import com.gema.zenitapp.ui.theme.verdeOscuro
 import com.gema.zenitapp.ui.theme.verdeTitulos
@@ -85,7 +87,35 @@ fun MovimientosScreen(
                 tamañoLetra = 30,
                 onMenuClick = onMenuClick
             )
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    val mod = Modifier.weight(1f)
+                    TarjetaMovimientoResumen(mod, "Ingresos", "+${String.format("%.2f", totalIngresos)}€", Icons.Default.ArrowUpward, verdeIconos)
+                    TarjetaMovimientoResumen(mod, "Gastos", "-${String.format("%.2f", totalGastos)}€", Icons.Default.ArrowDownward, rosa)
+                }
 
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    FiltroChipButton("Todos", seleccionado = (filtroSeleccionado == "Todos")) { filtroSeleccionado = "Todos" }
+                    Spacer(Modifier.width(8.dp))
+                    FiltroChipButton("Ingresos", seleccionado = (filtroSeleccionado == "Ingresos")) { filtroSeleccionado = "Ingresos" }
+                    Spacer(Modifier.width(8.dp))
+                    FiltroChipButton("Gastos", seleccionado = (filtroSeleccionado == "Gastos")) { filtroSeleccionado = "Gastos" }
+                }
+                Spacer(Modifier.height(14.dp))
+
+            HorizontalDivider(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 20.dp, start = 24.dp, end = 24.dp), // Alineado con los márgenes de tus tarjetas
+                thickness = 1.dp,
+                color = verdeGrisaceo // Un gris clarito y limpio (estilo Tailwind/Pastel)
+            )
             // Contenedor del listado: Ocupa el espacio disponible de forma elástica
             LazyColumn(
                 modifier = Modifier
@@ -94,34 +124,6 @@ fun MovimientosScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 contentPadding = PaddingValues(bottom = 8.dp)
             ) {
-                // TARJETAS SUPERIORES DINÁMICAS
-                item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        val mod = Modifier.weight(1f)
-                        TarjetaMovimientoResumen(mod, "Ingresos", "+${String.format("%.2f", totalIngresos)}€", Icons.Default.ArrowUpward, verdeIconos)
-                        TarjetaMovimientoResumen(mod, "Gastos", "-${String.format("%.2f", totalGastos)}€", Icons.Default.ArrowDownward, rosa)
-                    }
-                }
-
-                // FILTROS CHIPS
-                item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        FiltroChipButton("Todos", seleccionado = (filtroSeleccionado == "Todos")) { filtroSeleccionado = "Todos" }
-                        Spacer(Modifier.width(8.dp))
-                        FiltroChipButton("Ingresos", seleccionado = (filtroSeleccionado == "Ingresos")) { filtroSeleccionado = "Ingresos" }
-                        Spacer(Modifier.width(8.dp))
-                        FiltroChipButton("Gastos", seleccionado = (filtroSeleccionado == "Gastos")) { filtroSeleccionado = "Gastos" }
-                    }
-                    Spacer(Modifier.height(14.dp))
-                }
-
                 // CONTROL DE CARGA ASÍNCRONO
                 if (authViewModel.isLoading) {
                     item {
@@ -168,16 +170,31 @@ fun MovimientosScreen(
                                 color = Color(0xFF90A4AE)
                             )
 
+                            // 💡 SOLUCIÓN: Cambia el ItemGasto de tu MovimientosScreen por este estructurado:
                             ItemGasto(
                                 movimiento = movVisual,
-                                onEditarClick = { /* Próxima funcionalidad */ },
-                                onEliminarClick = { /* Próxima funcionalidad */ }
+                                onEditarClick = {
+                                    // Enlaza con el NavHost enviando el ID del movimiento a editar
+                                    onNavigateToNuevoMovimiento() // Si adaptas la firma en MainActivity para que acepte ID, pásale transaccion.id
+                                },
+                                onEliminarClick = {
+                                    // Ejecuta el borrado persistente en tu RDS de AWS
+                                    authViewModel.eliminarMovimientoBBDD(context, transaccion.id) {
+                                        Toast.makeText(context, "Movimiento eliminado", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
                             )
                         }
                     }
                 }
             } // El LazyColumn termina aquí y ya NO contiene al botón
-
+            HorizontalDivider(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 20.dp, start = 24.dp, end = 24.dp), // Alineado con los márgenes de tus tarjetas
+                thickness = 1.dp,
+                color = verdeGrisaceo // Un gris clarito y limpio (estilo Tailwind/Pastel)
+            )
             // CORRECCIÓN CRÍTICA: El botón se renderiza fuera de la lista.
             // Siempre se mantendrá visible pegado abajo independientemente de los registros.
             Box(

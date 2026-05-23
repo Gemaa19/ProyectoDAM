@@ -31,6 +31,12 @@ interface ZenitApiService {
         @Body datos: LoginUsuario
     ): Response<RespuestaAutenticacion>
 
+    // Añade esto en tu interfaz de Retrofit
+    @PUT("/usuarios/actualizar")
+    suspend fun actualizarNombre(
+        @Header("Authorization") token: String,
+        @Body nuevoNombre: String // O una clase DTO si tu Ktor recibe un objeto JSON
+    ): Response<Any>
 
     // ==========================================
     // 2. TRANSACCIONES / MOVIMIENTOS (Rutas protegidas)

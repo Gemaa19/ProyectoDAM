@@ -36,17 +36,20 @@ import com.gema.zenitapp.componentes.IconoSeleccionableCategoria
 import java.time.LocalDate
 import java.util.Calendar
 
+// 💡 LAS DOS LÍNEAS CORRECTAS PARA QUE EL LAZYROW COMPILE:
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items // ⬅️ ESTA ES LA QUE TE FALTA
+
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NuevoMovimientoScreen(
-    movimientoId: Long? = null, // 💡 NUEVO: Si llega un ID, la pantalla pasa automáticamente a modo EDICIÓN
+    movimientoId: Long? = null,
     onBack: () -> Unit,
     authViewModel: AuthViewModel = viewModel()
 ) {
     val context = LocalContext.current
 
-    // ESTADOS REACTIVOS BASE
     var esGasto by remember { mutableStateOf(true) }
     var esFijo by remember { mutableStateOf(true) }
     var importe by remember { mutableStateOf("") }
@@ -55,20 +58,37 @@ fun NuevoMovimientoScreen(
     var fechaSeleccionada by remember { mutableStateOf(LocalDate.now().toString()) }
     var categoriaSeleccionadaId by remember { mutableStateOf<Long?>(null) }
 
-    // 💡 NUEVO: Si estamos editando, buscamos el movimiento en la lista local y rellenamos los campos
+    // 💡 GESTOR DE PERMISOS NATIVO PARA COMPOSE
+    val launcherPermiso = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+    ) { esAceptado ->
+        if (!esAceptado) {
+            // Si el usuario lo rechaza, apagamos el switch para que la interfaz sea coherente
+            recordatorio = false
+            Toast.makeText(context, "Necesitas activar las notificaciones en los ajustes del móvil", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    // 💡 SOLUCIÓN: Sincronizamos las categorías de AWS al abrir la pantalla por si entra directo
+    LaunchedEffect(Unit) {
+        authViewModel.obtenerCategoriasBBDD(context)
+    }
+
+    // 💡 CORRECCIÓN: Buscamos en listaMovimientos (el histórico completo de AWS) para la edición
     LaunchedEffect(movimientoId) {
         if (movimientoId != null) {
-            val movAEditar = authViewModel.transaccionesReales.find { it.id == movimientoId }
+            val movAEditar = authViewModel.listaMovimientos.find { it.id == movimientoId }
             if (movAEditar != null) {
                 nombreGasto = movAEditar.descripcion ?: ""
                 importe = movAEditar.monto.toString()
                 esGasto = movAEditar.tipo == "GASTO"
                 fechaSeleccionada = movAEditar.fecha
                 categoriaSeleccionadaId = movAEditar.categoriaId
-                // Nota: si manejas la propiedad "fijo" o "recordatorio" en tu modelo, las rellenarías aquí
             }
         }
     }
+
+    // ... El resto del archivo se queda exactamente igual a tu bloque ...
 
     // Configuración del DatePickerDialog Nativo
     val calendarioLogico = Calendar.getInstance()
@@ -189,20 +209,44 @@ fun NuevoMovimientoScreen(
             Spacer(Modifier.height(24.dp))
 
             // CATEGORÍAS SELECCIONABLES
+            // CATEGORÍAS SELECCIONABLES (Sintonizadas dinámicamente)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text("Categorías", fontWeight = FontWeight.Bold)
             }
             Spacer(Modifier.height(12.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                IconoSeleccionableCategoria("Hogar", Icons.Default.Home, 1L, categoriaSeleccionadaId) { categoriaSeleccionadaId = it }
-                IconoSeleccionableCategoria("Servicios", Icons.Default.ElectricBolt, 2L, categoriaSeleccionadaId) { categoriaSeleccionadaId = it }
-                IconoSeleccionableCategoria("Transporte", Icons.Default.DirectionsCar, 3L, categoriaSeleccionadaId) { categoriaSeleccionadaId = it }
-                IconoSeleccionableCategoria("Comida", Icons.Default.Restaurant, 4L, categoriaSeleccionadaId) { categoriaSeleccionadaId = it }
+
+            // 💡 SOLUCIÓN: Despliegue infinito horizontal basado en tu AWS
+            // 💡 SOLUCIÓN: Ajustamos los parámetros exactos de tu componente base
+            // 💡 SOLUCIÓN: Despliegue dinámico adaptado a tu componente exacto
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                items(authViewModel.listaCategorias) { cat ->
+                    val vectorIcono = when (cat.id) {
+                        1L -> Icons.Default.Home
+                        2L -> Icons.Default.ElectricBolt
+                        3L -> Icons.Default.DirectionsCar
+                        4L -> Icons.Default.Restaurant
+                        else -> Icons.Default.CreditCard
+                    }
+
+                    // 💡 CORRECCIÓN DE PARÁMETROS NOMBRADOS:
+                    IconoSeleccionableCategoria(
+                        nombre = cat.nombre,
+                        icono = vectorIcono,
+                        id = cat.id,                 // ⬅️ Cambiado 'categoriaId' por 'id'
+                        idSeleccionado = categoriaSeleccionadaId, // ⬅️ Cambiado 'seleccionadaId' por 'idSeleccionado'
+                        onSelect = { idClasificada -> // ⬅️ Cambiado 'onSeleccion' por 'onSelect'
+                            categoriaSeleccionadaId = idClasificada
+                        }
+                    )
+                }
             }
 
             Spacer(Modifier.height(15.dp))
 
-            // RECORDATORIO
+            // RECORDATORIO (Modificado)
             Card(
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -215,7 +259,17 @@ fun NuevoMovimientoScreen(
                         Text("Recordatorio", fontWeight = FontWeight.Bold)
                         Text("Avisar 2 días antes", fontSize = 12.sp, color = Color.Gray)
                     }
-                    Switch(checked = recordatorio, onCheckedChange = { recordatorio = it }, colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = verdeClaro))
+                    Switch(
+                        checked = recordatorio,
+                        onCheckedChange = { activo ->
+                            if (activo && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                // Lanzamos la ventana emergente oficial de Android
+                                launcherPermiso.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                            }
+                            recordatorio = activo
+                        },
+                        colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = verdeClaro)
+                    )
                 }
             }
 
@@ -235,9 +289,8 @@ fun NuevoMovimientoScreen(
                     } else if (categoriaSeleccionadaId == null) {
                         Toast.makeText(context, "Por favor, selecciona una categoría", Toast.LENGTH_SHORT).show()
                     } else {
-                        // 💡 LÓGICA DE GUARDADO / ACTUALIZACIÓN:
                         if (movimientoId == null) {
-                            // Modo CREAR (Tu código original)
+                            // Modo CREAR
                             authViewModel.guardarMovimientoenBBDD(
                                 context = context,
                                 monto = montoDouble,
@@ -246,12 +299,22 @@ fun NuevoMovimientoScreen(
                                 fechaElegida = fechaSeleccionada,
                                 categoriaId = categoriaSeleccionadaId!!,
                                 onSuccess = {
+                                    // 💡 SI EL RECORDATORIO ESTÁ SELECCIONADO, PROGRAMAMOS LA ALERTA
+                                    if (recordatorio) {
+                                        authViewModel.registrarAlertaNotificacion(
+                                            context = context,
+                                            titulo = "Aviso de Gasto Fijo",
+                                            mensaje = "En 2 días se pasará el cargo de: $nombreGasto ($importeLimpio €)",
+                                            fechaMovimiento = fechaSeleccionada
+                                        )
+                                    }
+
                                     authViewModel.obtenerMovimientosBBDD(context)
                                     onBack()
                                 }
                             )
                         } else {
-                            // Modo EDITAR: Llama a la función PUT de tu ViewModel pasando el movimientoId
+                            // Modo EDITAR
                             authViewModel.editarMovimientoEnBBDD(
                                 context = context,
                                 id = movimientoId,
@@ -261,6 +324,7 @@ fun NuevoMovimientoScreen(
                                 fechaElegida = fechaSeleccionada,
                                 categoriaId = categoriaSeleccionadaId!!,
                                 onSuccess = {
+                                    // También puedes replicar la lógica aquí si se edita un recordatorio
                                     authViewModel.obtenerMovimientosBBDD(context)
                                     onBack()
                                 }
