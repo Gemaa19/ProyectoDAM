@@ -1,5 +1,6 @@
 package com.gema.zenitapp
 
+import android.content.res.Configuration
 import android.os.Build
 import android.widget.Toast
 import androidx.annotation.RequiresApi
@@ -42,6 +43,9 @@ import java.util.Locale
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import com.gema.zenit.models.TransaccionResponse
+import com.gema.zenitapp.componentes.FilaFechaDinamica
+import com.gema.zenitapp.componentes.FilaMovimiento
 import com.gema.zenitapp.ui.theme.verdeFondo
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -52,7 +56,6 @@ fun InicioScreen(
     onNavigateToMovimientos: () -> Unit,
     onNavigateToAnalisis: () -> Unit,
     onNavigateToObjetivos: () -> Unit,
-    // 💡 CAMBIO AQUÍ: Ahora el callback acepta el ID del movimiento a editar (si es null, es que es uno nuevo)
     onNavigateToNuevoMovimiento: (Long?) -> Unit,
     authViewModel: AuthViewModel = viewModel()
 ) {
@@ -62,7 +65,15 @@ fun InicioScreen(
         authViewModel.obtenerMovimientosBBDD(context)
     }
 
-    val movimientosReales = authViewModel.transaccionesReales
+    val hoy = LocalDate.now()
+    val movimientosReales = authViewModel.transaccionesReales.filter {
+        try {
+            val fechaMov = LocalDate.parse(it.fecha)
+            !fechaMov.isAfter(hoy)
+        } catch (e: Exception) {
+            true
+        }
+    }
     val sinDatos = movimientosReales.isEmpty()
     val totalIngresos = movimientosReales.filter { it.tipo == "INGRESO" }.sumOf { it.monto }
     val totalGastos = movimientosReales.filter { it.tipo == "GASTO" }.sumOf { it.monto }
@@ -86,23 +97,15 @@ fun InicioScreen(
                 .padding(paddingValues)
                 .background(Color.White)
         ) {
-            // ==========================================
-            // BLOQUE FIJO 1: Nombre de la aplicación
-            // ==========================================
             CabeceraPrincipal(
                 titulo = "ZENIT",
                 tamañoLetra = 35,
                 onMenuClick = onMenuClick
             )
 
-            // Si no hay datos, mostramos el estado vacío ocupando el resto de la pantalla
             if (sinDatos) {
-                // 💡 CAMBIO: Le pasamos null porque es un movimiento nuevo de paquete
                 EstadoVacioInicio(onAgregarClick = { onNavigateToNuevoMovimiento(null) })
             } else {
-                // ==========================================
-                // BLOQUE FIJO 2: Indicadores y tarjetas (No se mueven)
-                // ==========================================
                 SeccionSaldo(saldoReal = saldoMensual)
 
                 TarjetasResumidas(
@@ -113,17 +116,14 @@ fun InicioScreen(
                 HorizontalDivider(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 20.dp, start = 24.dp, end = 24.dp), // Alineado con los márgenes de tus tarjetas
+                        .padding(top = 20.dp, start = 24.dp, end = 24.dp),
                     thickness = 1.dp,
-                    color = verdeGrisaceo // Un gris clarito y limpio (estilo Tailwind/Pastel)
+                    color = MaterialTheme.colorScheme.primary
                 )
-                // ==========================================
-                // BLOQUE CON SCROLL: Solo los últimos movimientos
-                // ==========================================
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
-                        .weight(1f), // Toma el espacio restante de la pantalla de forma dinámica
+                        .weight(1f),
                     contentPadding = PaddingValues(bottom = 16.dp)
                 ) {
                     item {
@@ -142,39 +142,11 @@ fun InicioScreen(
                         }
 
                         items(listaDeEseDia) { transaccion ->
-                            val esIngreso = transaccion.tipo == "INGRESO"
-
-                            val iconoCategoria = when (transaccion.categoriaId) {
-                                1L -> Icons.Default.Home
-                                2L -> Icons.Default.ElectricBolt
-                                3L -> Icons.Default.DirectionsCar
-                                4L -> Icons.Default.Restaurant
-                                else -> Icons.Default.CreditCard
-                            }
-
-                            val movVisual = Movimiento(
-                                nombre = transaccion.descripcion ?: "Movimiento general",
-                                categoria = when (transaccion.categoriaId) {
-                                    1L -> "Hogar"
-                                    2L -> "Servicios"
-                                    3L -> "Transporte"
-                                    4L -> "Comida"
-                                    else -> "General"
-                                },
-                                cantidad = "${if (esIngreso) "+" else "-"}${String.format("%.2f", transaccion.monto)}€",
-                                esIngreso = esIngreso,
-                                icono = if (esIngreso) Icons.Default.Payments else iconoCategoria,
-                                color = Color(0xFF90A4AE)
-                            )
-
-                            ItemGasto(
-                                movimiento = movVisual,
-                                onEditarClick = {
-                                    // 💡 SOLUCIÓN: Usamos el callback de la pantalla pasándole el ID real
-                                    onNavigateToNuevoMovimiento(transaccion.id)
-                                },
-                                onEliminarClick = {
-                                    authViewModel.eliminarMovimientoBBDD(context, transaccion.id) {
+                            FilaMovimiento(
+                                transaccion = transaccion,
+                                onEditarClick = { id -> onNavigateToNuevoMovimiento(id) },
+                                onEliminarClick = { id ->
+                                    authViewModel.eliminarMovimientoBBDD(context, id) {
                                         Toast.makeText(context, "Movimiento eliminado", Toast.LENGTH_SHORT).show()
                                     }
                                 }
@@ -186,42 +158,6 @@ fun InicioScreen(
                 }
             }
         }
-    }
-}
-
-@RequiresApi(Build.VERSION_CODES.O)
-@Composable
-fun FilaFechaDinamica(fechaSql: String) {
-    var textoIzquierda = "MOVIMIENTO"
-
-    try {
-        val fechaTransaccion = LocalDate.parse(fechaSql)
-        val formateadorMes = DateTimeFormatter.ofPattern("d 'de' MMMM 'de' yyyy", Locale("es"))
-        val hoy = LocalDate.now()
-
-        textoIzquierda = when (fechaTransaccion) {
-            hoy -> "HOY"
-            hoy.minusDays(1) -> "AYER"
-            else -> fechaTransaccion.format(formateadorMes).uppercase()
-        }
-
-    } catch (e: Exception) {
-        textoIzquierda = "MOVIMIENTO"
-    }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 6.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = textoIzquierda,
-            fontWeight = FontWeight.W200,
-            fontSize = 13.sp,
-            color = Color.DarkGray
-        )
     }
 }
 
@@ -237,7 +173,7 @@ fun EstadoVacioInicio(onAgregarClick: () -> Unit) {
 
         Text(
             text = "Bienvenido a Zenit, añade tus primeros movimientos y empieza a usar la app con todas sus ventajas",
-            color = Color.DarkGray,
+            color = verdeOscuro,
             fontSize = 18.sp,
             fontWeight = FontWeight.W300,
             textAlign = TextAlign.Center,
@@ -316,7 +252,7 @@ fun TarjetaResumenPequeña(modifier: Modifier, title: String, amount: String, ic
     Card(
         modifier = modifier.height(95.dp),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.onPrimary),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
@@ -326,140 +262,9 @@ fun TarjetaResumenPequeña(modifier: Modifier, title: String, amount: String, ic
         ) {
             Icon(icon, null, tint = iconColor, modifier = Modifier.size(24.dp))
             Spacer(Modifier.height(4.dp))
-            Text(title, color = Color.Gray, fontSize = 11.sp, maxLines = 1, textAlign = TextAlign.Center)
+            Text(title, color = MaterialTheme.colorScheme.primary, fontSize = 11.sp, maxLines = 1, textAlign = TextAlign.Center)
             Spacer(Modifier.height(4.dp))
             Text(amount, fontWeight = FontWeight.Bold, color = verdeTitulos, fontSize = 13.sp)
         }
-    }
-}
-
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-fun ItemGasto(
-    movimiento: Movimiento,
-    onEditarClick: () -> Unit,   // Callback para abrir la pantalla de edición
-    onEliminarClick: () -> Unit  // Callback para borrar el registro en AWS
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(65.dp)
-            .padding(horizontal = 20.dp, vertical = 3.dp),
-        shape = RoundedCornerShape(25.dp),
-        elevation = CardDefaults.cardElevation(6.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxSize(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Contenedor del icono (Extremo izquierdo)
-            Box(
-                modifier = Modifier
-                    .padding(4.dp)
-                    .fillMaxHeight()
-                    .width(60.dp)
-                    .background(
-                        color = verdeFondo,
-                        shape = RoundedCornerShape(30.dp)
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = movimiento.icono,
-                    contentDescription = null,
-                    tint = verdeOscuro,
-                    modifier = Modifier.size(25.dp)
-                )
-            }
-
-            // Textos centrales (Descripción y Categoría)
-            Column(
-                modifier = Modifier
-                    .weight(1f) // Se expande para ocupar todo el espacio central
-                    .padding(start = 16.dp, end = 8.dp),
-                verticalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    text = movimiento.nombre,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
-                    color = Color(0xFF1A1A1A),
-                    maxLines = 1
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = movimiento.categoria,
-                    color = Color(0xFF9EA1A7),
-                    fontSize = 14.sp,
-                    maxLines = 1
-                )
-            }
-
-            // Cantidad de dinero (Empujada hacia la izquierda de las acciones)
-            Text(
-                text = movimiento.cantidad,
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp,
-                color = if (movimiento.esIngreso) Color(0xFF029B09) else Color(0xFFB2130F),
-                modifier = Modifier.padding(horizontal = 4.dp) // Ajuste fino de separación
-            )
-
-            // Este Spacer actúa como un muelle invisible que empuja todo lo que viene detrás
-            // al extremo derecho de la tarjeta
-            Spacer(modifier = Modifier.width(8.dp))
-
-            // Bloque de botones (Pegados al extremo derecho)
-            Row(
-                modifier = Modifier.padding(end = 12.dp), // Margen exterior derecho de la cápsula
-                horizontalArrangement = Arrangement.spacedBy(2.dp), // Reducido para que estén bien pegados entre sí
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // BOTÓN DE MODIFICAR (Lápiz gris)
-                IconButton(
-                    onClick = onEditarClick,
-                    modifier = Modifier.size(30.dp) // Ajustado a 30dp para mejorar la respuesta táctil sin separarlos
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = "Modificar movimiento",
-                        tint = Color.DarkGray,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-
-                // BOTÓN DE ELIMINAR (Papelera roja)
-                IconButton(
-                    onClick = onEliminarClick,
-                    modifier = Modifier.size(30.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Eliminar movimiento",
-                        tint = Color(0xFFB2130F),
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-        }
-    }
-}
-
-
-
-
-@RequiresApi(Build.VERSION_CODES.O)
-@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun InicioScreenPreview() {
-    ZenitAppTheme {
-        InicioScreen(
-            onMenuClick = {},
-            onNavigateToMovimientos = {},
-            onNavigateToAnalisis = {},
-            onNavigateToObjetivos = {},
-            onNavigateToNuevoMovimiento = {} // <--- Cambiado con el nombre nuevo
-        )
     }
 }

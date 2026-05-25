@@ -2,6 +2,7 @@ package com.gema.zenitapp
 
 import android.app.DatePickerDialog
 import android.os.Build
+import android.util.Log
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.BorderStroke
@@ -20,7 +21,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.lazy.items
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -36,62 +36,62 @@ import com.gema.zenitapp.viewmodel.AuthViewModel
 import java.time.LocalDate
 import java.util.Calendar
 
+import com.gema.zenitapp.componentes.CabeceraFormulario
+import com.gema.zenitapp.componentes.SelectorDobleOpciones
+import com.gema.zenitapp.componentes.recordarPermisoNotificaciones
+
 @RequiresApi(Build.VERSION_CODES.O)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NuevoObjetivoScreen(
-    objetivoId: Long? = null,
+    objetivoId: String? = null,
     tipoObjetivo: String? = null,
-    onBack: () -> Unit,
+    onBack: (String) -> Unit,
     authViewModel: AuthViewModel = viewModel()
 ) {
-
     val context = LocalContext.current
+
     var esPresupuesto by remember { mutableStateOf(true) }
     var importe by remember { mutableStateOf("") }
     var importeAhorrado by remember { mutableStateOf("") }
     var nombreObjetivo by remember { mutableStateOf("") }
     var esMensual by remember { mutableStateOf(true) }
+
     var fechaMetaSeleccionada by remember { mutableStateOf(LocalDate.now().plusDays(1).toString()) }
     var categoriaSeleccionadaId by remember { mutableStateOf<Long?>(null) }
-
     var recordatorio by remember { mutableStateOf(false) }
 
-// 💡 GESTOR DE PERMISOS NATIVO (Copia y pega esto)
-    val launcherPermiso = androidx.activity.compose.rememberLauncherForActivityResult(
-        contract = androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
-    ) { esAceptado ->
-        if (!esAceptado) {
-            recordatorio = false
-            Toast.makeText(context, "Necesitas activar las notificaciones en los ajustes del móvil", Toast.LENGTH_LONG).show()
-        }
-    }
-    // 💡 SOLUCIÓN: Descarga las categorías actualizadas de la RDS al instanciarse la vista
-    LaunchedEffect(Unit) {
+    val solicitarPermiso = recordarPermisoNotificaciones { esAceptado -> recordatorio = esAceptado }
+
+    LaunchedEffect(objetivoId, tipoObjetivo) {
         authViewModel.obtenerCategoriasBBDD(context)
-    }
+        authViewModel.obtenerObjetivosBBDD(context)
 
-    LaunchedEffect(objetivoId, tipoObjetivo) {
-        // ... Tu mapeo existente de presupuestos y metas se queda igual ...
-    }
+        if (!objetivoId.isNullOrBlank() && tipoObjetivo != null) {
+            val idFiltro = objetivoId.toLongOrNull()
 
-    // ... El resto del Scaffold se queda igual ...
-    LaunchedEffect(objetivoId, tipoObjetivo) {
-        if (objetivoId != null && tipoObjetivo != null) {
-            if (tipoObjetivo == "PRESUPUESTO") {
-                esPresupuesto = true
-                authViewModel.listaPresupuestos.find { it.id == objetivoId }?.let { pres ->
-                    importe = pres.montoLimite.toString()
-                    categoriaSeleccionadaId = pres.categoriaId
+            when (tipoObjetivo) {
+                "PRESUPUESTO" -> {
+                    esPresupuesto = true
+                    authViewModel.listaPresupuestos.find { it.id == idFiltro }?.let { pres ->
+                        importe = pres.montoLimite.toString()
+                        categoriaSeleccionadaId = pres.categoriaId
+                        esMensual = pres.mes != 13
+                    }
                 }
-            } else if (tipoObjetivo == "META") {
-                esPresupuesto = false
-                authViewModel.listaMetas.find { it.id == objetivoId }?.let { meta ->
-                    nombreObjetivo = meta.nombre ?: ""
-                    importe = meta.objetivo.toString()
-                    importeAhorrado = meta.ahorrado.toString()
-                    fechaMetaSeleccionada = meta.fechaLimite ?: LocalDate.now().plusDays(1).toString()
+                "META" -> {
+                    esPresupuesto = false
+                    authViewModel.listaMetas.find { it.id == idFiltro }?.let { meta ->
+                        nombreObjetivo = meta.nombre ?: ""
+                        importe = meta.objetivo.toString()
+                        importeAhorrado = meta.ahorrado.toString()
+                        esMensual = !meta.fechaLimite.isNullOrBlank() && !meta.fechaLimite.contains("-12-31")
+                        fechaMetaSeleccionada = meta.fechaLimite ?: LocalDate.now().plusDays(1).toString()
+                    }
                 }
             }
+        } else {
+            esPresupuesto = (tipoObjetivo != "META")
         }
     }
 
@@ -106,133 +106,33 @@ fun NuevoObjetivoScreen(
         calendarioLogico.get(Calendar.YEAR),
         calendarioLogico.get(Calendar.MONTH),
         calendarioLogico.get(Calendar.DAY_OF_MONTH)
-    )
+    ).apply {
+        datePicker.minDate = System.currentTimeMillis() + (24 * 60 * 60 * 1000)
+    }
 
-    Scaffold(
-        topBar = { CabeceraSimple("Establecer objetivo", onBack) },
-        bottomBar = {
-            Button(
-                onClick = {
-                    val importeLimpio = importe.replace(",", ".").trim()
-                    val montoDouble = importeLimpio.toDoubleOrNull() ?: 0.0
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.White)
+            .verticalScroll(rememberScrollState())
+    ) {
+        CabeceraFormulario(
+            titulo = if (objetivoId == null) "Establecer objetivo" else "Editar objetivo",
+            onBack = { onBack(if (esPresupuesto) "Presupuestos" else "Metas") }
+        )
 
-                    if (montoDouble <= 0.0) {
-                        Toast.makeText(context, "Introduce un importe válido", Toast.LENGTH_SHORT).show()
-                        return@Button
-                    }
+        Column(modifier = Modifier.padding(20.dp)) {
 
-                    if (esPresupuesto) {
-                        val catId = categoriaSeleccionadaId ?: 1L
-                        val hoy = LocalDate.now()
-
-                        authViewModel.guardarPresupuestoEnBBDD(
-                            context = context,
-                            montoLimite = montoDouble,
-                            categoriaId = catId,
-                            mes = hoy.monthValue,
-                            anio = hoy.year,
-                            onSuccess = {
-                                // 💡 CASO A: PROGRAMAR RECORDATORIO DE PRESUPUESTO
-                                if (recordatorio) {
-                                    val nombreCat = authViewModel.listaCategorias.find { it.id == catId }?.nombre ?: "Categoría"
-                                    authViewModel.registrarAlertaNotificacion(
-                                        context = context,
-                                        titulo = "Control de Presupuesto: $nombreCat",
-                                        mensaje = "Has establecido un límite de $importeLimpio €. Te avisaremos si te acercas al 80%.",
-                                        // Usamos el último día del mes actual para fijar la alarma en el AlarmManager
-                                        fechaMovimiento = hoy.withDayOfMonth(hoy.lengthOfMonth()).toString()
-                                    )
-                                }
-
-                                authViewModel.obtenerObjetivosBBDD(context)
-                                onBack()
-                            }
-                        )
-                    } else {
-                        if (nombreObjetivo.isBlank()) {
-                            Toast.makeText(context, "Por favor, dale un nombre a la meta", Toast.LENGTH_SHORT).show()
-                            return@Button
-                        }
-
-                        val ahorradoLimpio = importeAhorrado.replace(",", ".").trim()
-                        val ahorradoDouble = ahorradoLimpio.toDoubleOrNull() ?: 0.0
-
-                        if (ahorradoDouble < 0.0 || ahorradoDouble > montoDouble) {
-                            Toast.makeText(context, "Verifica el importe ahorrado inicial", Toast.LENGTH_SHORT).show()
-                            return@Button
-                        }
-
-                        try {
-                            val fechaElegidaParseada = LocalDate.parse(fechaMetaSeleccionada)
-                            if (!fechaElegidaParseada.isAfter(LocalDate.now())) {
-                                Toast.makeText(context, "La fecha límite debe ser un día en el futuro", Toast.LENGTH_LONG).show()
-                                return@Button
-                            }
-                        } catch (e: Exception) {
-                            Toast.makeText(context, "Formato de fecha incorrecto", Toast.LENGTH_SHORT).show()
-                            return@Button
-                        }
-
-                        authViewModel.guardarMetaEnBBDD(
-                            context = context,
-                            name = nombreObjetivo,
-                            objetivo = montoDouble,
-                            ahorrado = ahorradoDouble,
-                            fechaLimite = fechaMetaSeleccionada,
-                            onSuccess = {
-                                // 💡 CASO B: PROGRAMAR RECORDATORIO DE META DE AHORRO
-                                if (recordatorio) {
-                                    authViewModel.registrarAlertaNotificacion(
-                                        context = context,
-                                        titulo = "Meta de Ahorro: $nombreObjetivo",
-                                        mensaje = "Tu meta de $importeLimpio € vence pronto. ¡No olvides ingresar tus aportaciones!",
-                                        // Usamos la fecha límite elegida por el usuario en el DatePicker
-                                        fechaMovimiento = fechaMetaSeleccionada
-                                    )
-                                }
-
-                                authViewModel.obtenerObjetivosBBDD(context)
-                                onBack()
-                            }
-                        )
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp)
-                    .height(55.dp),
-                shape = RoundedCornerShape(15.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00A680))
-            ) {
-                Icon(Icons.Default.Save, null)
-                Spacer(Modifier.width(8.dp))
-                Text("Guardar objetivo", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-            }
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .background(Color.White)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp)
-        ) {
-            Spacer(Modifier.height(15.dp))
-
-            SelectorDoble(
+            SelectorDobleOpciones(
                 opcion1 = "Presupuesto",
                 opcion2 = "Meta",
-                seleccionado1 = esPresupuesto,
-                onSeleccion = { esPresupuesto = it }
+                estaSeleccionadaOpcion1 = esPresupuesto,
+                onSeleccionCambiada = { esPresupuesto = it }
             )
 
-            // CONTENEDOR DE IMPORTES DINÁMICOS
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // Bloque 1: Objetivo total (Común a presupuestos y metas)
+            Spacer(Modifier.height(15.dp))
+
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                 Text(
                     text = if (esPresupuesto) "Monto límite" else "Dinero total que quieres conseguir",
                     color = Color.Gray,
@@ -251,7 +151,6 @@ fun NuevoObjetivoScreen(
                     colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = verdeOscuro, unfocusedBorderColor = Color.LightGray.copy(alpha = 0.5f))
                 )
 
-                // 💡 Bloque 2: Dinero llevado hasta ahora (Solo visible si se marca "Meta")
                 if (!esPresupuesto) {
                     Spacer(Modifier.height(16.dp))
                     Text("Dinero que llevas ahorrado ya", color = Color.Gray, fontSize = 14.sp)
@@ -261,48 +160,51 @@ fun NuevoObjetivoScreen(
                         onValueChange = { importeAhorrado = it },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         placeholder = { Text("0.00", fontSize = 20.sp, color = Color.LightGray, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center) },
-                        suffix = { Text("€", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF00A680)) },
-                        textStyle = LocalTextStyle.current.copy(fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF00A680), textAlign = TextAlign.Center),
+                        suffix = { Text("€", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0D5140)) },
+                        textStyle = LocalTextStyle.current.copy(fontSize = 22.sp, fontWeight = FontWeight.Bold, color = verdeOscuro, textAlign = TextAlign.Center),
                         modifier = Modifier.width(190.dp).background(Color(0xFFF9F9F9), RoundedCornerShape(15.dp)),
                         shape = RoundedCornerShape(15.dp),
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFF00A680), unfocusedBorderColor = Color.LightGray.copy(alpha = 0.4f))
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = verdeOscuro, unfocusedBorderColor = Color.LightGray.copy(alpha = 0.4f))
                     )
                 }
             }
 
             Spacer(Modifier.height(20.dp))
 
-            // NOMBRE DEL OBJETIVO
             Text("Nombre del objetivo", fontWeight = FontWeight.Bold, fontSize = 14.sp)
             Spacer(Modifier.height(8.dp))
             OutlinedTextField(
                 value = nombreObjetivo,
                 onValueChange = { nombreObjetivo = it },
-                placeholder = { Text("ej. Coche nuevo, Viaje fin de grado, Mac", fontSize = 14.sp) },
+                placeholder = { Text("ej. Coche nuevo, Viaje fin de grado, Mac",
+                    fontSize = 14.sp) },
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(20.dp),
                 leadingIcon = { Icon(Icons.Default.Edit, null, tint = Color.Gray, modifier = Modifier.size(20.dp)) },
-                colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Color.LightGray, focusedBorderColor = verdeOscuro),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = MaterialTheme.colorScheme.scrim,
+                    unfocusedTextColor = MaterialTheme.colorScheme.scrim,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.scrim,
+                    focusedBorderColor = MaterialTheme.colorScheme.scrim
+                ),
                 singleLine = true
             )
 
             Spacer(Modifier.height(20.dp))
 
-            // SECCIÓN CONDICIONAL FRECUENCIA / FECHA LÍMITE
-            if (esPresupuesto) {
-                Text("Frecuencia", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                Spacer(Modifier.height(10.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth().height(65.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    CajaFrecuencia(Modifier.weight(1f), "Mensual", Icons.Default.CalendarMonth, esMensual) { esMensual = true }
-                    CajaFrecuencia(Modifier.weight(1f), "Anual", Icons.Default.CalendarToday, !esMensual) { esMensual = false }
-                }
-                Spacer(Modifier.height(20.dp))
-            } else {
-                Text("Fecha límite de la meta", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                Spacer(Modifier.height(8.dp))
+            Text("Frecuencia o Plazo del objetivo", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Spacer(Modifier.height(10.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth().height(65.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                CajaFrecuencia(Modifier.weight(1f), "Mensual", Icons.Default.CalendarMonth, esMensual) { esMensual = true }
+                CajaFrecuencia(Modifier.weight(1f), "Anual", Icons.Default.CalendarToday, !esMensual) { esMensual = false }
+            }
+            Spacer(Modifier.height(20.dp))
+
+            if (!esPresupuesto) {
+                Text("Fecha límite para cumplir la meta", fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 8.dp))
                 OutlinedTextField(
                     value = fechaMetaSeleccionada,
                     onValueChange = {},
@@ -314,25 +216,21 @@ fun NuevoObjetivoScreen(
                             Icon(Icons.Default.CalendarToday, null, tint = verdeOscuro)
                         }
                     },
-                    colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Color.LightGray, focusedBorderColor = verdeOscuro)
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = MaterialTheme.colorScheme.scrim,
+                        unfocusedTextColor = MaterialTheme.colorScheme.scrim,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.scrim,
+                        focusedBorderColor = MaterialTheme.colorScheme.scrim
+                    )
                 )
                 Spacer(Modifier.height(20.dp))
             }
 
-            // SECCIÓN DE CATEGORÍAS
-            // SECCIÓN DE CATEGORÍAS (Mapeo reactivo infinito)
             if (esPresupuesto) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text("Categorías", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                }
+                Text("Categorías", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 Spacer(Modifier.height(12.dp))
 
-                // 💡 SOLUCIÓN: Evita el corte en 4 categorías
-                // 💡 AJUSTE COMPLEMENTARIO: Carrusel dinámico corregido para el formulario
-                LazyRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
+                LazyRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     items(authViewModel.listaCategorias) { cat ->
                         val vectorIcono = when (cat.id) {
                             1L -> Icons.Default.Home
@@ -346,31 +244,26 @@ fun NuevoObjetivoScreen(
                             icono = vectorIcono,
                             id = cat.id,
                             idSeleccionado = categoriaSeleccionadaId,
-                            onSelect = { idClasificada ->
-                                categoriaSeleccionadaId = idClasificada
-                            }
+                            onSelect = { idClasificada -> categoriaSeleccionadaId = idClasificada }
                         )
                     }
                 }
                 Spacer(Modifier.height(25.dp))
             }
 
-            // RECORDATORIO
             Card(
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
                 elevation = CardDefaults.cardElevation(2.dp),
                 border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.3f))
             ) {
-                Row(
-                    Modifier.padding(12.dp).fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Default.NotificationsNone, null, tint = Color(0xFF00A680), modifier = Modifier.size(28.dp))
+                Row(Modifier.padding(12.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.NotificationsNone, null, tint = verdeOscuro, modifier = Modifier.size(28.dp))
                     Column(Modifier.padding(horizontal = 12.dp).weight(1f)) {
-                        Text("Recordatorio", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text("Recordatorio inteligente", fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp, color = verdeOscuro)
                         Text(
-                            text = if (esPresupuesto) "Avisar al 80% del límite" else "Avisar una semana antes del cierre",
+                            text = if (esPresupuesto) "Avisar al 80% del límite mensual" else "Avisar automáticamente 2 días antes del fin o al alcanzar el 80%",
                             fontSize = 12.sp,
                             color = Color.Gray
                         )
@@ -378,21 +271,99 @@ fun NuevoObjetivoScreen(
                     Switch(
                         checked = recordatorio,
                         onCheckedChange = { activo ->
-                            if (activo && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                // Lanza la ventana de Android para permitir notificaciones
-                                launcherPermiso.launch(android.Manifest.permission.POST_NOTIFICATIONS)
-                            }
-                            recordatorio = activo
-                        },
-                        colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = verdeClaro)
+                            if (activo) solicitarPermiso() else recordatorio = false
+                        }
                     )
                 }
             }
 
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(30.dp))
+
+            Button(
+                onClick = {
+                    val importeLimpio = importe.replace(",", ".").trim()
+                    val montoDouble = importeLimpio.toDoubleOrNull() ?: 0.0
+
+                    if (montoDouble <= 0.0) {
+                        Toast.makeText(context, "Por favor, introduce un importe numérico válido", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
+
+                    val idNumerico = objetivoId?.toLongOrNull()
+                    val hoy = LocalDate.now()
+
+                    val mesAGuardar = if (esMensual) hoy.monthValue else 13
+                    val anioAGuardar = hoy.year
+
+                    val fechaFinalMeta = if (!esPresupuesto) {
+                        if (esMensual) fechaMetaSeleccionada else "${hoy.year}-12-31"
+                    } else {
+                        fechaMetaSeleccionada
+                    }
+
+                    if (esPresupuesto) {
+                        val catId = categoriaSeleccionadaId ?: 1L
+                        if (idNumerico == null) {
+                            authViewModel.guardarPresupuestoEnBBDD(context, montoDouble, catId, mesAGuardar, anioAGuardar) {
+                                authViewModel.obtenerObjetivosBBDD(context)
+                                onBack("Presupuestos")
+                            }
+                        } else {
+                            authViewModel.editarPresupuestoEnBBDD(context, idNumerico, montoDouble, catId, mesAGuardar, anioAGuardar) {
+                                authViewModel.obtenerObjetivosBBDD(context)
+                                onBack("Presupuestos")
+                            }
+                        }
+                    } else {
+                        val nombreLimpio = nombreObjetivo.trim()
+                        val ahorradoLimpio = importeAhorrado.replace(",", ".").trim()
+                        val ahorradoDouble = if (ahorradoLimpio.isBlank()) 0.0 else (ahorradoLimpio.toDoubleOrNull() ?: 0.0)
+
+                        if (nombreLimpio.isBlank()) {
+                            Toast.makeText(context, "El nombre del objetivo no puede estar vacío", Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
+
+                        if (idNumerico == null) {
+                            authViewModel.guardarMetaEnBBDD(context, nombreLimpio, montoDouble, ahorradoDouble, fechaFinalMeta) {
+                                if (recordatorio) {
+                                    try {
+                                        authViewModel.registrarAlertaNotificacion(
+                                            context = context,
+                                            titulo = "Meta próxima a vencer",
+                                            mensaje = "¡Atención! Queda poco para cumplir tu meta: $nombreLimpio",
+                                            fechaMovimiento = fechaFinalMeta
+                                        )
+                                    } catch (e: Exception) {
+                                        Log.e("ZenitApp", "Error de alerta local")
+                                    }
+                                }
+                                authViewModel.obtenerObjetivosBBDD(context)
+                                onBack("Metas")
+                            }
+                        } else {
+                            authViewModel.editarMetaEnBBDD(context, idNumerico, nombreLimpio, montoDouble, ahorradoDouble, fechaFinalMeta) {
+                                authViewModel.obtenerObjetivosBBDD(context)
+                                onBack("Metas")
+                            }
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().height(55.dp),
+                shape = RoundedCornerShape(30.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    contentColor = MaterialTheme.colorScheme.primary
+                )
+            ) {
+                Icon(Icons.Default.Save, null)
+                Spacer(Modifier.width(8.dp))
+                Text(if (objetivoId == null) "Guardar" else "Actualizar", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            }
         }
     }
 }
+
 @Composable
 fun CajaFrecuencia(
     modifier: Modifier,
@@ -403,7 +374,7 @@ fun CajaFrecuencia(
 ) {
     Card(
         modifier = modifier
-            .height(65.dp) // <--- REDUCIDO DE 80.dp A 65.dp
+            .height(65.dp)
             .clickable { onClick() },
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
@@ -423,11 +394,11 @@ fun CajaFrecuencia(
                 imageVector = icono,
                 contentDescription = null,
                 tint = if (seleccionado) Color(0xFF0D5140) else Color.Black,
-                modifier = Modifier.size(20.dp) // Icono un pelín más pequeño para ajustar
+                modifier = Modifier.size(20.dp)
             )
             Text(
                 text = texto,
-                fontSize = 13.sp, // Fuente ligeramente más pequeña
+                fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
                 color = if (seleccionado) Color(0xFF0D5140) else Color.Black
             )

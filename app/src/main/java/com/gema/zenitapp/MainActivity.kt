@@ -1,5 +1,6 @@
 package com.gema.zenitapp
 
+import android.content.Context
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -8,6 +9,10 @@ import androidx.activity.enableEdgeToEdge
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -23,8 +28,17 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        configurarLanzadorTransaccionesDiarias()
         setContent {
-            ZenitAppTheme {
+            val context = LocalContext.current
+            val prefs =
+                remember { context.getSharedPreferences("zenit_prefs", Context.MODE_PRIVATE) }
+
+            var esModoOscuroActivo by remember {
+                mutableStateOf(prefs.getBoolean("modo_oscuro_activo", false))
+            }
+
+            ZenitAppTheme(darkTheme = esModoOscuroActivo) {
                 val navController = rememberNavController()
                 val authViewModel: AuthViewModel = viewModel()
                 val context = LocalContext.current
@@ -58,7 +72,7 @@ class MainActivity : ComponentActivity() {
                     composable("signup") {
                         RegistroScreen(
                             onNavigateToLogin = { navController.navigate("login") },
-                            onRegistroSuccess = { // <--- Asegúrate de que aquí pone onRegistroSuccess
+                            onRegistroSuccess = {
                                 navController.navigate("inicio") {
                                     popUpTo("signup") {
                                         inclusive = true
@@ -74,13 +88,11 @@ class MainActivity : ComponentActivity() {
                             onMenuClick = { navController.navigate("hamburguesa") },
                             onNavigateToMovimientos = { navController.navigate("movimientos") },
                             onNavigateToAnalisis = { navController.navigate("analisis") },
-                            onNavigateToObjetivos = { navController.navigate("objetivos") },
+                            onNavigateToObjetivos = { navController.navigate("objetivos/Presupuestos") },
                             onNavigateToNuevoMovimiento = { movimientoId ->
                                 if (movimientoId != null) {
-                                    // Si lleva ID, viajamos con el argumento a la pantalla de edición
                                     navController.navigate("nuevo_movimiento?movimientoId=$movimientoId")
                                 } else {
-                                    // Si es null, navegamos a la pantalla limpia para crear
                                     navController.navigate("nuevo_movimiento")
                                 }
                             }
@@ -91,7 +103,10 @@ class MainActivity : ComponentActivity() {
                         HamburguesaScreen(
                             authViewModel = authViewModel,
                             onBackClick = { navController.popBackStack() },
-                            // 💡 SOLUCIÓN: Quitamos 'onEditClick' porque ahora el lápiz abre el diálogo interno
+                            esModoOscuroActivo = esModoOscuroActivo,
+                            onModoOscuroCambiado = { nuevoValor ->
+                                esModoOscuroActivo = nuevoValor
+                            },
                             onLogoutSuccess = {
                                 navController.navigate("login") {
                                     popUpTo("login") { inclusive = true }
@@ -103,144 +118,104 @@ class MainActivity : ComponentActivity() {
                     composable("movimientos") {
                         MovimientosScreen(
                             onMenuClick = { navController.navigate("hamburguesa") },
-                            onNavigateToNuevoMovimiento = { navController.navigate("nuevo_movimiento") },
                             onNavigateToInicio = { navController.navigate("inicio") },
                             onNavigateToAnalisis = { navController.navigate("analisis") },
-                            onNavigateToObjetivos = { navController.navigate("objetivos") }
-                        )
-                    }
-
-                    // 💡 CORRECCIÓN CRUCIAL EN TU MAINACTIVITY.KT
-                    // En tu MainActivity.kt actualiza estas dos declaraciones en el NavHost:
-
-                    composable("objetivos") {
-                        ObjetivosScreen(
-                            authViewModel = authViewModel,
-                            onMenuClick = { navController.navigate("hamburguesa") },
-                            onNavigateToInicio = { navController.navigate("inicio") },
-                            onNavigateToMovimientos = { navController.navigate("movimientos") },
-                            onNavigateToAnalisis = { navController.navigate("analisis") },
-                            // 💡 MAPEAMOS LOS DESTINOS DEPENDIENDO DE SI LLEVAN ID O NO
-                            onNavigateToNuevoObjetivo = { id, tipo ->
-                                if (id != null) {
-                                    navController.navigate("nuevo_objetivo?id=$id&tipo=$tipo")
+                            onNavigateToObjetivos = { navController.navigate("objetivos/Presupuestos") },
+                            onNavigateToNuevoMovimiento = { movimientoId ->
+                                if (movimientoId != null) {
+                                    navController.navigate("nuevo_movimiento?movimientoId=$movimientoId")
                                 } else {
-                                    navController.navigate("nuevo_objetivo")
+                                    navController.navigate("nuevo_movimiento")
                                 }
                             }
                         )
                     }
 
+                    composable("objetivos/{pestaña}") { backStackEntry ->
+                        val pestaña =
+                            backStackEntry.arguments?.getString("pestaña") ?: "Presupuestos"
 
-
+                        ObjetivosScreen(
+                            pestañaInicial = pestaña,
+                            authViewModel = authViewModel,
+                            onMenuClick = { navController.navigate("hamburguesa") },
+                            onNavigateToInicio = { navController.navigate("inicio") },
+                            onNavigateToMovimientos = { navController.navigate("movimientos") },
+                            onNavigateToAnalisis = { navController.navigate("analisis") },
+                            onNavigateToNuevoObjetivo = { id, tipo ->
+                                if (id != null) {
+                                    navController.navigate("nuevo_objetivo/$id/$tipo")
+                                } else {
+                                    navController.navigate("nuevo_objetivo/null/CLEAN")
+                                }
+                            }
+                        )
+                    }
                     composable("analisis") {
                         AnalisisScreen(
                             onMenuClick = { navController.navigate("hamburguesa") },
                             onNavigateToInicio = { navController.navigate("inicio") },
                             onNavigateToMovimientos = { navController.navigate("movimientos") },
-                            onNavigateToObjetivos = { navController.navigate("objetivos") }
+                            onNavigateToObjetivos = { navController.navigate("objetivos/Presupuestos") }
                         )
                     }
 
+
                     composable(
-                        route = "nuevo_objetivo?id={id}&tipo={tipo}",
+                        route = "nuevo_movimiento?movimientoId={movimientoId}",
                         arguments = listOf(
-                            navArgument("id") { type = NavType.StringType; nullable = true; defaultValue = null },
-                            navArgument("tipo") { type = NavType.StringType; nullable = true; defaultValue = null }
+                            navArgument("movimientoId") {
+                                type = NavType.StringType
+                                nullable = true
+                                defaultValue = null
+                            }
                         )
                     ) { backStackEntry ->
-                        val idStr = backStackEntry.arguments?.getString("id")
-                        val tipoStr = backStackEntry.arguments?.getString("tipo")
+                        val movimientoIdStr = backStackEntry.arguments?.getString("movimientoId")
 
-                        NuevoObjetivoScreen(
-                            objetivoId = idStr?.toLongOrNull(),
-                            tipoObjetivo = tipoStr,
+                        val movimientoIdLong = movimientoIdStr?.toLongOrNull()
+
+                        NuevoMovimientoScreen(
+                            movimientoId = movimientoIdLong,
                             authViewModel = authViewModel,
                             onBack = { navController.popBackStack() }
+                        )
+                    }
+                    composable("nuevo_objetivo/{id}/{tipo}") { backStackEntry ->
+                        val id = backStackEntry.arguments?.getString("id")
+                        val tipo = backStackEntry.arguments?.getString("tipo")
+
+                        NuevoObjetivoScreen(
+                            objetivoId = if (id == "null") null else id,
+                            tipoObjetivo = if (tipo == "CLEAN") null else tipo,
+                            authViewModel = authViewModel,
+                            onBack = { pestañaDestino ->
+                                navController.navigate("objetivos/$pestañaDestino") {
+                                    popUpTo("objetivos/{pestaña}") { inclusive = true }
+                                }
+                            }
                         )
                     }
                 }
             }
         }
     }
-}
+    private fun configurarLanzadorTransaccionesDiarias() {
 
-//@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun CargaScreenPreview() {
-    ZenitAppTheme {
-        CargaScreen(onNavigateToLogin = {})
-    }
-}
+        val restricciones = androidx.work.Constraints.Builder()
+            .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
+            .build()
 
+        val solicitudTrabajoDiario = androidx.work.PeriodicWorkRequestBuilder<com.gema.zenitapp.workers.TransaccionesProgramadasWorker>(
+            24, java.util.concurrent.TimeUnit.HOURS
+        )
+            .setConstraints(restricciones)
+            .build()
 
-//@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun RegistroPreview() {
-    ZenitAppTheme {
-        RegistroScreen(
-            onNavigateToLogin = {},
-            onRegistroSuccess = {} // <--- Cambiado aquí también
+        androidx.work.WorkManager.getInstance(applicationContext).enqueueUniquePeriodicWork(
+            "SincronizadorGastosFuturos",
+            androidx.work.ExistingPeriodicWorkPolicy.KEEP,
+            solicitudTrabajoDiario
         )
     }
 }
-
-
-
-/*@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun ObjetivosScreenPreview() { // <--- Nombre actualizado
-    ZenitAppTheme {
-        ObjetivosScreen(
-            onMenuClick = {},
-            onNavigateToInicio = {},
-            onNavigateToMovimientos = {},
-            onNavigateToAnalisis = {},
-            onNavigateToNuevoObjetivo = { }
-        )
-    }
-}*/
-
-/*@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun NuevoObjetivoScreenPreview() { // He añadido "Preview" al nombre para que no choque con la original
-    ZenitAppTheme {
-        NuevoObjetivoScreen(onBack = {})
-    }
-}*/
-
-/*@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun MovimientosScreenPreview() { // He añadido "Preview" al nombre para que no choque con la original
-    ZenitAppTheme {
-        MovimientosScreen(
-            onMenuClick = {},
-            onNavigateToNuevoMovimiento = {},
-            onNavigateToInicio = {},
-            onNavigateToAnalisis = {},
-            onNavigateToObjetivos = {},
-        )
-    }
-}*/
-
-//@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun NuevoMovimientoScreenPreview() { // He añadido "Preview" al nombre para que no choque con la original
-    ZenitAppTheme {
-        //NuevoMovimientoScreen(onBack = {})
-    }
-}
-
-/*
-@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun AnalisisScreenPreview() {
-    ZenitAppTheme {
-        AnalisisScreen(
-            onMenuClick = {},
-            onNavigateToInicio = {},
-            onNavigateToMovimientos = {},
-            onNavigateToObjetivos = {}
-        )
-    }
-}*/

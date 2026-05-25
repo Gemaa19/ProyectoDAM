@@ -8,7 +8,6 @@ import retrofit2.converter.gson.GsonConverterFactory
 object RetrofitClient {
     private const val BASE_URL = "http://56.228.34.149:8080/"
 
-    // Configuramos un logger para ver las peticiones en el Logcat
     private val logger = HttpLoggingInterceptor().apply {
         level = HttpLoggingInterceptor.Level.BODY
     }

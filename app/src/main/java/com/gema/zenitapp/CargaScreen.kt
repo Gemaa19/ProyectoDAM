@@ -3,6 +3,7 @@ package com.gema.zenitapp
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -12,8 +13,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
-import com.gema.zenitapp.ui.theme.verdeFondo
-import com.gema.zenitapp.ui.theme.verdeOscuro
 
 @Composable
 fun CargaScreen(onNavigateToLogin: () -> Unit) {
@@ -25,12 +24,12 @@ fun CargaScreen(onNavigateToLogin: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(verdeFondo),
+            .background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = "ZENIT",
-            color = verdeOscuro,
+            color = MaterialTheme.colorScheme.primary,
             fontSize = 80.sp,
             fontWeight = FontWeight.W900,
             fontFamily = FontFamily.SansSerif,

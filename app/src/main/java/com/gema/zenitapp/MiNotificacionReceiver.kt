@@ -18,7 +18,6 @@ class MiNotificacionReceiver : BroadcastReceiver() {
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val channelId = "zenit_alertas_channel"
 
-        // 1. Crear el canal de notificaciones (Requisito obligatorio desde Android 8.0)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val canal = NotificationChannel(
                 channelId,
@@ -30,8 +29,6 @@ class MiNotificacionReceiver : BroadcastReceiver() {
             notificationManager.createNotificationChannel(canal)
         }
 
-        // 2. Crear la acción de abrir la app al pulsar la notificación
-        // Cambia 'MainActivity' por el nombre de tu actividad principal si se llama distinto
         val intentAbrirApp = context.packageManager.getLaunchIntentForPackage(context.packageName)
         val pendingIntent = PendingIntent.getActivity(
             context,
@@ -40,9 +37,8 @@ class MiNotificacionReceiver : BroadcastReceiver() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // 3. Construir la notificación visual con tus colores/iconos de diseño
         val notificacion = NotificationCompat.Builder(context, channelId)
-            .setSmallIcon(android.R.drawable.ic_popup_reminder) // Puedes cambiarlo por tu icono de Zenit
+            .setSmallIcon(android.R.drawable.ic_popup_reminder)
             .setContentTitle(titulo)
             .setContentText(mensaje)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -50,7 +46,6 @@ class MiNotificacionReceiver : BroadcastReceiver() {
             .setContentIntent(pendingIntent)
             .build()
 
-        // 4. Lanzar la notificación al sistema con un ID único
         notificationManager.notify(System.currentTimeMillis().toInt(), notificacion)
     }
 }

@@ -14,14 +14,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -31,14 +29,17 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.gema.zenitapp.viewmodel.AuthViewModel
 import com.gema.zenitapp.ui.theme.verdeOscuro
-import com.gema.zenitapp.ui.theme.verdeClaro
 import com.gema.zenitapp.componentes.IconoSeleccionableCategoria
 import java.time.LocalDate
 import java.util.Calendar
-
-// 💡 LAS DOS LÍNEAS CORRECTAS PARA QUE EL LAZYROW COMPILE:
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items // ⬅️ ESTA ES LA QUE TE FALTA
+import androidx.compose.foundation.lazy.items
+import android.content.res.Configuration
+import androidx.compose.ui.tooling.preview.Preview
+import com.gema.zenitapp.componentes.CabeceraFormulario
+import com.gema.zenitapp.componentes.SelectorDobleOpciones
+import com.gema.zenitapp.componentes.recordarPermisoNotificaciones
+import com.gema.zenitapp.ui.theme.ZenitAppTheme
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
@@ -55,26 +56,19 @@ fun NuevoMovimientoScreen(
     var importe by remember { mutableStateOf("") }
     var nombreGasto by remember { mutableStateOf("") }
     var recordatorio by remember { mutableStateOf(false) }
-    var fechaSeleccionada by remember { mutableStateOf(LocalDate.now().toString()) }
+
+    var fechaSeleccionadaVariable by remember { mutableStateOf(LocalDate.now().toString()) }
+    var diaFijoSeleccionado by remember { mutableStateOf(1) }
+    var expandirMenuDias by remember { mutableStateOf(false) }
+
     var categoriaSeleccionadaId by remember { mutableStateOf<Long?>(null) }
 
-    // 💡 GESTOR DE PERMISOS NATIVO PARA COMPOSE
-    val launcherPermiso = androidx.activity.compose.rememberLauncherForActivityResult(
-        contract = androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
-    ) { esAceptado ->
-        if (!esAceptado) {
-            // Si el usuario lo rechaza, apagamos el switch para que la interfaz sea coherente
-            recordatorio = false
-            Toast.makeText(context, "Necesitas activar las notificaciones en los ajustes del móvil", Toast.LENGTH_LONG).show()
-        }
-    }
+    val solicitarPermiso = recordarPermisoNotificaciones { esAceptado -> recordatorio = esAceptado }
 
-    // 💡 SOLUCIÓN: Sincronizamos las categorías de AWS al abrir la pantalla por si entra directo
     LaunchedEffect(Unit) {
         authViewModel.obtenerCategoriasBBDD(context)
     }
 
-    // 💡 CORRECCIÓN: Buscamos en listaMovimientos (el histórico completo de AWS) para la edición
     LaunchedEffect(movimientoId) {
         if (movimientoId != null) {
             val movAEditar = authViewModel.listaMovimientos.find { it.id == movimientoId }
@@ -82,22 +76,26 @@ fun NuevoMovimientoScreen(
                 nombreGasto = movAEditar.descripcion ?: ""
                 importe = movAEditar.monto.toString()
                 esGasto = movAEditar.tipo == "GASTO"
-                fechaSeleccionada = movAEditar.fecha
                 categoriaSeleccionadaId = movAEditar.categoriaId
+
+                try {
+                    val fechaParsed = LocalDate.parse(movAEditar.fecha)
+                    fechaSeleccionadaVariable = movAEditar.fecha
+                    diaFijoSeleccionado = fechaParsed.dayOfMonth
+                } catch (e: Exception) {
+                    Log.e("ZenitApp", "Error al mapear fecha de edición")
+                }
             }
         }
     }
 
-    // ... El resto del archivo se queda exactamente igual a tu bloque ...
-
-    // Configuración del DatePickerDialog Nativo
     val calendarioLogico = Calendar.getInstance()
     val datePickerDialog = DatePickerDialog(
         context,
         { _, anyo, mes, dia ->
             val mesFormateado = String.format("%02d", mes + 1)
             val diaFormateado = String.format("%02d", dia)
-            fechaSeleccionada = "$anyo-$mesFormateado-$diaFormateado"
+            fechaSeleccionadaVariable = "$anyo-$mesFormateado-$diaFormateado"
         },
         calendarioLogico.get(Calendar.YEAR),
         calendarioLogico.get(Calendar.MONTH),
@@ -110,37 +108,30 @@ fun NuevoMovimientoScreen(
             .background(Color.White)
             .verticalScroll(rememberScrollState())
     ) {
-        // 💡 CABECERA DINÁMICA: Cambia el título según si el ID existe o no
-        CabeceraSimple(
+        CabeceraFormulario(
             titulo = if (movimientoId == null) "Nuevo movimiento" else "Editar movimiento",
             onBack = onBack
         )
 
         Column(modifier = Modifier.padding(20.dp)) {
 
-            // SELECTOR GASTO / INGRESO
-            SelectorDoble(
-                opcion1 = "Gasto",
-                opcion2 = "Ingreso",
-                seleccionado1 = esGasto,
-                onSeleccion = { esGasto = it },
+            SelectorDobleOpciones("Gasto", "Ingreso", esGasto,
+                { esGasto = it },
                 icono1 = Icons.Default.ArrowDownward,
-                icono2 = Icons.Default.ArrowUpward
-            )
+                icono2 = Icons.Default.ArrowUpward)
 
-            Spacer(Modifier.height(16.dp))
-
-            // SELECTOR FIJO / VARIABLE
-            SelectorDoble(
+            SelectorDobleOpciones(
                 opcion1 = "Fijo",
                 opcion2 = "Variable",
-                seleccionado1 = esFijo,
-                onSeleccion = { esFijo = it }
+                estaSeleccionadaOpcion1 = esFijo,
+                onSeleccionCambiada = {
+                    esFijo = it
+                    if (!it) { recordatorio = false }
+                }
             )
 
             Spacer(Modifier.height(15.dp))
 
-            // IMPORTE EDITABLE REFORZADO
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                 Text("Importe", color = Color.Gray, fontSize = 14.sp)
                 Spacer(Modifier.height(4.dp))
@@ -148,80 +139,110 @@ fun NuevoMovimientoScreen(
                     value = importe,
                     onValueChange = { importe = it },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    placeholder = { Text("0.00", fontSize = 24.sp, color = Color.LightGray, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center) },
+                    placeholder = { Text("0.00", fontSize = 24.sp,
+                        color = Color.LightGray, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center) },
                     suffix = { Text("€", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0D5140)) },
-                    textStyle = LocalTextStyle.current.copy(
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF0D5140),
-                        textAlign = TextAlign.Center
-                    ),
-                    modifier = Modifier
-                        .width(220.dp)
-                        .background(Color(0xFFF9F9F9), RoundedCornerShape(15.dp)),
+                    textStyle = LocalTextStyle.current.copy(fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF0D5140), textAlign = TextAlign.Center),
+                    modifier = Modifier.width(220.dp).background(Color(0xFFF9F9F9), RoundedCornerShape(15.dp)),
                     shape = RoundedCornerShape(15.dp),
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = verdeOscuro, unfocusedBorderColor = Color.LightGray.copy(alpha = 0.5f))
+                )
+            }
+
+            Spacer(Modifier.height(15.dp))
+
+            Text("Nombre del gasto o ingreso",
+                fontWeight = FontWeight.Bold,
+                color = verdeOscuro,
+                modifier = Modifier.padding(bottom = 8.dp))
+            OutlinedTextField(
+                value = nombreGasto,
+                onValueChange = { nombreGasto = it },
+                placeholder = { Text("ej. Alquiler, internet, Nómina", color = MaterialTheme.colorScheme.scrim) },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                leadingIcon = { Icon(Icons.Default.Edit, null, tint = Color.Gray) },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = MaterialTheme.colorScheme.scrim,
+                    unfocusedTextColor = MaterialTheme.colorScheme.scrim,
+                    focusedBorderColor = MaterialTheme.colorScheme.scrim,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.scrim
+                )
+            )
+
+            Spacer(Modifier.height(15.dp))
+
+            if (esFijo) {
+                Text("Día del mes de cobro/ingreso",
+                    fontWeight = FontWeight.Bold,
+                    color = verdeOscuro,
+                    modifier = Modifier.padding(bottom = 8.dp))
+                ExposedDropdownMenuBox(
+                    expanded = expandirMenuDias,
+                    onExpandedChange = { expandirMenuDias = !expandirMenuDias }
+                ) {
+                    OutlinedTextField(
+                        value = "Cada día $diaFijoSeleccionado del mes",
+                        onValueChange = {},
+                        readOnly = true,
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandirMenuDias) },
+                        leadingIcon = { Icon(Icons.Default.Timelapse, null, tint = MaterialTheme.colorScheme.scrim) },
+                        modifier = Modifier.fillMaxWidth().menuAnchor(),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = MaterialTheme.colorScheme.scrim,
+                            unfocusedTextColor = MaterialTheme.colorScheme.scrim,
+                            focusedBorderColor = MaterialTheme.colorScheme.scrim,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.scrim
+                        )
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expandirMenuDias,
+                        onDismissRequest = { expandirMenuDias = false },
+                        modifier = Modifier.background(Color.White)
+                    ) {
+                        (1..31).forEach { dia ->
+                            DropdownMenuItem(
+                                text = { Text("Día $dia") },
+                                onClick = {
+                                    diaFijoSeleccionado = dia
+                                    expandirMenuDias = false
+                                }
+                            )
+                        }
+                    }
+                }
+            } else {
+                Text("Fecha del movimiento",
+                    fontWeight = FontWeight.Bold,
+                    color = verdeOscuro,
+                    modifier = Modifier.padding(bottom = 8.dp))
+                OutlinedTextField(
+                    value = fechaSeleccionadaVariable,
+                    onValueChange = {},
+                    readOnly = true,
+                    modifier = Modifier.fillMaxWidth().clickable { datePickerDialog.show() },
+                    shape = RoundedCornerShape(20.dp),
+                    leadingIcon = {
+                        IconButton(onClick = { datePickerDialog.show() }) {
+                            Icon(Icons.Default.CalendarToday, null, tint = MaterialTheme.colorScheme.scrim)
+                        }
+                    },
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = verdeOscuro,
-                        unfocusedBorderColor = Color.LightGray.copy(alpha = 0.5f),
-                        focusedContainerColor = Color(0xFFF9F9F9),
-                        unfocusedContainerColor = Color(0xFFF9F9F9)
+                        focusedTextColor = MaterialTheme.colorScheme.scrim,
+                        unfocusedTextColor = MaterialTheme.colorScheme.scrim,
+                        focusedBorderColor = MaterialTheme.colorScheme.scrim,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.scrim
                     )
                 )
             }
 
-            Spacer(Modifier.height(15.dp))
-
-            // NOMBRE DEL GASTO
-            Text("Nombre del gasto o ingreso", fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 8.dp))
-            OutlinedTextField(
-                value = nombreGasto,
-                onValueChange = { nombreGasto = it },
-                placeholder = { Text("ej. Alquiler, internet, Nómina") },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                leadingIcon = { Icon(Icons.Default.Edit, null, tint = Color.Gray) },
-                colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Color.LightGray)
-            )
-
-            Spacer(Modifier.height(15.dp))
-
-            // SECCIÓN SELECCIÓN DE FECHA
-            Text("Fecha del movimiento", fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 8.dp))
-            OutlinedTextField(
-                value = fechaSeleccionada,
-                onValueChange = {},
-                readOnly = true,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { datePickerDialog.show() },
-                shape = RoundedCornerShape(20.dp),
-                leadingIcon = {
-                    IconButton(onClick = { datePickerDialog.show() }) {
-                        Icon(Icons.Default.CalendarToday, null, tint = verdeOscuro)
-                    }
-                },
-                colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedBorderColor = Color.LightGray,
-                    focusedBorderColor = verdeOscuro
-                )
-            )
-
             Spacer(Modifier.height(24.dp))
 
-            // CATEGORÍAS SELECCIONABLES
-            // CATEGORÍAS SELECCIONABLES (Sintonizadas dinámicamente)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("Categorías", fontWeight = FontWeight.Bold)
-            }
+            Text("Categorías", fontWeight = FontWeight.Bold, color = verdeOscuro)
             Spacer(Modifier.height(12.dp))
 
-            // 💡 SOLUCIÓN: Despliegue infinito horizontal basado en tu AWS
-            // 💡 SOLUCIÓN: Ajustamos los parámetros exactos de tu componente base
-            // 💡 SOLUCIÓN: Despliegue dinámico adaptado a tu componente exacto
-            LazyRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
+            LazyRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 items(authViewModel.listaCategorias) { cat ->
                     val vectorIcono = when (cat.id) {
                         1L -> Icons.Default.Home
@@ -231,56 +252,60 @@ fun NuevoMovimientoScreen(
                         else -> Icons.Default.CreditCard
                     }
 
-                    // 💡 CORRECCIÓN DE PARÁMETROS NOMBRADOS:
                     IconoSeleccionableCategoria(
                         nombre = cat.nombre,
                         icono = vectorIcono,
-                        id = cat.id,                 // ⬅️ Cambiado 'categoriaId' por 'id'
-                        idSeleccionado = categoriaSeleccionadaId, // ⬅️ Cambiado 'seleccionadaId' por 'idSeleccionado'
-                        onSelect = { idClasificada -> // ⬅️ Cambiado 'onSeleccion' por 'onSelect'
-                            categoriaSeleccionadaId = idClasificada
+                        id = cat.id,
+                        idSeleccionado = categoriaSeleccionadaId,
+                        onSelect = { idClasificada -> categoriaSeleccionadaId = idClasificada }
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(20.dp))
+
+            if (esFijo) {
+                Card(
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(2.dp),
+                    border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.5f))
+                ) {
+                    Row(Modifier.padding(16.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.NotificationsNone, null, tint = verdeOscuro, modifier = Modifier.size(28.dp))
+                        Column(Modifier.padding(horizontal = 12.dp).weight(1f)) {
+                            Text("Recordatorio de pago",
+                                fontWeight = FontWeight.Bold,
+                                color = verdeOscuro)
+                            Text("La alerta saltará 2 días antes automáticamente", fontSize = 12.sp, color = Color.Gray)
                         }
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(15.dp))
-
-            // RECORDATORIO (Modificado)
-            Card(
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(2.dp),
-                border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.5f))
-            ) {
-                Row(Modifier.padding(16.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.NotificationsNone, null, tint = verdeOscuro, modifier = Modifier.size(28.dp))
-                    Column(Modifier.padding(horizontal = 12.dp).weight(1f)) {
-                        Text("Recordatorio", fontWeight = FontWeight.Bold)
-                        Text("Avisar 2 días antes", fontSize = 12.sp, color = Color.Gray)
-                    }
-                    Switch(
-                        checked = recordatorio,
-                        onCheckedChange = { activo ->
-                            if (activo && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                // Lanzamos la ventana emergente oficial de Android
-                                launcherPermiso.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                        Switch(
+                            checked = recordatorio,
+                            onCheckedChange = { activo ->
+                                if (activo) solicitarPermiso() else recordatorio = false
                             }
-                            recordatorio = activo
-                        },
-                        colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = verdeClaro)
-                    )
+                        )
+                    }
                 }
+                Spacer(Modifier.height(30.dp))
+            } else {
+                Spacer(Modifier.height(15.dp))
             }
 
-            Spacer(Modifier.height(30.dp))
-
-            // BOTÓN GUARDAR DINÁMICO
             Button(
                 onClick = {
                     val importeLimpio = importe.replace(",", ".").trim()
                     val montoDouble = importeLimpio.toDoubleOrNull() ?: 0.0
                     val tipoMovimiento = if (esGasto) "GASTO" else "INGRESO"
+
+                    val fechaAEnviar = if (esFijo) {
+                        val anioActual = LocalDate.now().year
+                        val mesActual = String.format("%02d", LocalDate.now().monthValue)
+                        val diaFormateado = String.format("%02d", diaFijoSeleccionado)
+                        "$anioActual-$mesActual-$diaFormateado"
+                    } else {
+                        fechaSeleccionadaVariable
+                    }
 
                     if (nombreGasto.isBlank()) {
                         Toast.makeText(context, "Por favor, introduce una descripción", Toast.LENGTH_SHORT).show()
@@ -290,41 +315,40 @@ fun NuevoMovimientoScreen(
                         Toast.makeText(context, "Por favor, selecciona una categoría", Toast.LENGTH_SHORT).show()
                     } else {
                         if (movimientoId == null) {
-                            // Modo CREAR
                             authViewModel.guardarMovimientoenBBDD(
                                 context = context,
                                 monto = montoDouble,
                                 descripcion = nombreGasto,
                                 tipo = tipoMovimiento,
-                                fechaElegida = fechaSeleccionada,
+                                fechaElegida = fechaAEnviar,
                                 categoriaId = categoriaSeleccionadaId!!,
                                 onSuccess = {
-                                    // 💡 SI EL RECORDATORIO ESTÁ SELECCIONADO, PROGRAMAMOS LA ALERTA
                                     if (recordatorio) {
-                                        authViewModel.registrarAlertaNotificacion(
-                                            context = context,
-                                            titulo = "Aviso de Gasto Fijo",
-                                            mensaje = "En 2 días se pasará el cargo de: $nombreGasto ($importeLimpio €)",
-                                            fechaMovimiento = fechaSeleccionada
-                                        )
+                                        try {
+                                            authViewModel.registrarAlertaNotificacion(
+                                                context = context,
+                                                titulo = if (esGasto) "Aviso de Gasto Fijo" else "Aviso de Ingreso Fijo",
+                                                mensaje = "En 2 días se pasará: $nombreGasto ($importeLimpio €)",
+                                                fechaMovimiento = fechaAEnviar
+                                            )
+                                        } catch (e: Exception) {
+                                            Log.e("ZenitApp", "Error al registrar notificación: ${e.message}")
+                                        }
                                     }
-
                                     authViewModel.obtenerMovimientosBBDD(context)
                                     onBack()
                                 }
                             )
                         } else {
-                            // Modo EDITAR
                             authViewModel.editarMovimientoEnBBDD(
                                 context = context,
                                 id = movimientoId,
                                 monto = montoDouble,
                                 descripcion = nombreGasto,
                                 tipo = tipoMovimiento,
-                                fechaElegida = fechaSeleccionada,
+                                fechaElegida = fechaAEnviar,
                                 categoriaId = categoriaSeleccionadaId!!,
                                 onSuccess = {
-                                    // También puedes replicar la lógica aquí si se edita un recordatorio
                                     authViewModel.obtenerMovimientosBBDD(context)
                                     onBack()
                                 }
@@ -335,12 +359,14 @@ fun NuevoMovimientoScreen(
                 enabled = !authViewModel.isLoading,
                 modifier = Modifier.fillMaxWidth().height(55.dp),
                 shape = RoundedCornerShape(30.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = verdeOscuro)
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    contentColor = MaterialTheme.colorScheme.primary
+                )
             ) {
                 if (authViewModel.isLoading) {
                     CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
                 } else {
-                    // Texto del botón adaptivo
                     Text(
                         text = if (movimientoId == null) "Guardar movimiento" else "Actualizar movimiento",
                         fontSize = 16.sp,
@@ -353,35 +379,30 @@ fun NuevoMovimientoScreen(
     }
 }
 
-// MANTENEMOS COMPONENTES DE DISEÑO BASE FIJOS
-@Composable
-fun CabeceraSimple(titulo: String, onBack: () -> Unit) {
-    Box(modifier = Modifier.fillMaxWidth().background(verdeClaro).padding(16.dp)) {
-        IconButton(onClick = onBack, modifier = Modifier.align(Alignment.CenterStart)) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color(0xFF0D5140))
-        }
-        Text(titulo, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp, color = Color(0xFF0D5140), modifier = Modifier.align(Alignment.Center))
-    }
-}
 
+@RequiresApi(Build.VERSION_CODES.O)
+@Preview(
+    name = "Nuevo Movimiento - Modo Claro",
+    showBackground = true,
+    uiMode = Configuration.UI_MODE_NIGHT_NO
+)
+@Preview(
+    name = "Nuevo Movimiento - Modo Oscuro",
+    showBackground = true,
+    uiMode = Configuration.UI_MODE_NIGHT_YES
+)
 @Composable
-fun SelectorDoble(opcion1: String, opcion2: String, seleccionado1: Boolean, onSeleccion: (Boolean) -> Unit, icono1: ImageVector? = null, icono2: ImageVector? = null) {
-    Card(shape = RoundedCornerShape(15.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5))) {
-        Row(Modifier.fillMaxWidth().padding(4.dp)) {
-            Box(Modifier.weight(1f).height(45.dp).background(if (seleccionado1) verdeClaro else Color.Transparent, RoundedCornerShape(12.dp)).clickable { onSeleccion(true) }, contentAlignment = Alignment.Center) {
-                Row {
-                    if (icono1 != null) Icon(icono1, null, tint = if (seleccionado1) Color(0xFF0D5140) else Color.Gray, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text(opcion1, fontWeight = FontWeight.Bold, color = if (seleccionado1) Color(0xFF0D5140) else Color.Gray)
-                }
-            }
-            Box(Modifier.weight(1f).height(45.dp).background(if (!seleccionado1) verdeClaro else Color.Transparent, RoundedCornerShape(12.dp)).clickable { onSeleccion(false) }, contentAlignment = Alignment.Center) {
-                Row {
-                    if (icono2 != null) Icon(icono2, null, tint = if (!seleccionado1) Color(0xFF0D5140) else Color.Gray, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text(opcion2, fontWeight = FontWeight.Bold, color = if (!seleccionado1) Color(0xFF0D5140) else Color.Gray)
-                }
-            }
+fun NuevoMovimientoScreenP() {
+    ZenitAppTheme {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background
+        ) {
+            NuevoMovimientoScreen(
+                movimientoId = null,
+                onBack = {},
+                authViewModel = viewModel()
+            )
         }
     }
 }

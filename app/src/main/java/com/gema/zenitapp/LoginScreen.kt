@@ -14,52 +14,52 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
 import android.util.Log
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.gema.zenitapp.ui.theme.BackgroundWhite
+import com.gema.zenitapp.componentes.ZenitInputField
 import com.gema.zenitapp.ui.theme.ZenitAppTheme
-import com.gema.zenitapp.ui.theme.colorBoton
-import com.gema.zenitapp.ui.theme.verdeClaro
-import com.gema.zenitapp.ui.theme.verdeFondo
-import com.gema.zenitapp.ui.theme.verdeIconos
-import com.gema.zenitapp.ui.theme.verdeOscuro
 import com.gema.zenitapp.ui.theme.verdeTitulos
 import com.gema.zenitapp.viewmodel.AuthViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Composable 
+@Composable
 fun LoginScreen(onNavigateToSignUp: () -> Unit, onLoginSuccess: () -> Unit, authViewModel: AuthViewModel = viewModel()) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var errorLocal by remember { mutableStateOf("") }
     val context = LocalContext.current
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(BackgroundWhite)
+            .background(Color.White)
     ) {
 
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(250.dp)
-                .background(verdeFondo, shape = RoundedCornerShape(bottomEnd = 100.dp))
+                .background(
+                    color = MaterialTheme.colorScheme.background,
+                    shape = RoundedCornerShape(bottomEnd = 100.dp)
+                )
                 .padding(top = 50.dp),
             contentAlignment = Alignment.Center
         ) {
             Column(verticalArrangement = Arrangement.Center) {
                 Text(
                     text = "ZENIT",
-                    color = verdeOscuro,
+                    color = MaterialTheme.colorScheme.primary,
                     fontSize = 80.sp,
                     fontWeight = FontWeight.W900,
                     fontFamily = FontFamily.SansSerif,
@@ -76,11 +76,13 @@ fun LoginScreen(onNavigateToSignUp: () -> Unit, onLoginSuccess: () -> Unit, auth
                 .fillMaxWidth()
                 .padding(end = 40.dp),
             textAlign = TextAlign.End,
-            style = TextStyle(fontSize = 32.sp,
+            style = TextStyle(
+                fontSize = 32.sp,
                 color = verdeTitulos,
                 fontWeight = FontWeight.W500,
                 fontFamily = FontFamily.SansSerif,
-                letterSpacing = 2.sp)
+                letterSpacing = 2.sp
+            )
         )
 
         Column(
@@ -110,25 +112,59 @@ fun LoginScreen(onNavigateToSignUp: () -> Unit, onLoginSuccess: () -> Unit, auth
                 iconOnLeft = true
             )
 
-            Text(
-                text = "¿Has olvidado la contraseña?",
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-                textAlign = TextAlign.End,
-                fontSize = 12.sp,
-                color = Color.Gray
-            )
+            Spacer(modifier = Modifier.height(25.dp))
 
-            Spacer(modifier = Modifier.height(40.dp))
+            val mensajeDeError = when {
+                errorLocal.isNotEmpty() -> errorLocal
+                authViewModel.errorMessage.isNotEmpty() -> authViewModel.errorMessage
+                else -> ""
+            }
+
+            if (mensajeDeError.isNotEmpty()) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isSystemInDarkTheme())
+                            Color(0xFF2C1B1A) else Color(0xFFFCE8E6)
+                    ),
+                    border = BorderStroke(1.dp, if (isSystemInDarkTheme()) Color(0xFF632422) else Color(0xFFF5B7B1).copy(alpha = 0.6f))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = "Alerta de acceso",
+                            tint = if (isSystemInDarkTheme()) Color(0xFFFFB4AB) else Color(0xFFA12620),
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = mensajeDeError,
+                            color = if (isSystemInDarkTheme()) Color(0xFFFFDAD6) else Color(0xFF5C1916),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            lineHeight = 18.sp,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(20.dp))
+            } else {
+                Spacer(modifier = Modifier.height(15.dp))
+            }
 
             Button(
                 onClick = {
                     if (email.isEmpty() || password.isEmpty()) {
-                        Toast.makeText(context, "Rellena todos los campos", Toast.LENGTH_SHORT).show()
+                        errorLocal = "Por favor, rellena todos los campos"
                         return@Button
                     }
-
+                    errorLocal = ""
                     authViewModel.loginUsuario(
                         context = context,
                         correo = email.trim(),
@@ -138,24 +174,21 @@ fun LoginScreen(onNavigateToSignUp: () -> Unit, onLoginSuccess: () -> Unit, auth
                                 Log.d("API_SUCCESS", "Login correcto a través de AuthViewModel")
                                 Toast.makeText(context, "¡Bienvenido a ZenitApp!", Toast.LENGTH_SHORT).show()
                                 onLoginSuccess()
-                            } else {
-                                Toast.makeText(context, authViewModel.errorMessage, Toast.LENGTH_SHORT).show()
                             }
                         }
                     )
                 },
-
                 enabled = !authViewModel.isLoading,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(55.dp),
                 shape = RoundedCornerShape(30.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = colorBoton,
+                    containerColor = MaterialTheme.colorScheme.onBackground,
                     contentColor = Color.White
                 )
             ) {
-                if (authViewModel.isLoading) { // Indicador de carga atado al ciclo del ViewModel
+                if (authViewModel.isLoading) {
                     CircularProgressIndicator(
                         color = Color.White,
                         modifier = Modifier.size(24.dp),
@@ -173,7 +206,7 @@ fun LoginScreen(onNavigateToSignUp: () -> Unit, onLoginSuccess: () -> Unit, auth
             ) {
                 Text(
                     text = "¿No tienes cuenta? ",
-                    color = Color.Gray
+                    color = MaterialTheme.colorScheme.scrim
                 )
                 TextButton(
                     onClick = { onNavigateToSignUp() },
@@ -195,97 +228,42 @@ fun LoginScreen(onNavigateToSignUp: () -> Unit, onLoginSuccess: () -> Unit, auth
             modifier = Modifier
                 .fillMaxWidth()
                 .height(70.dp)
-                .background(verdeFondo),
+                .background(MaterialTheme.colorScheme.background),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = "CONTROLA LO QUE GASTAS, DOMINA LO QUE AHORRAS",
-                style = TextStyle(fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
+                style = TextStyle(
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 2.sp,
+                    color = MaterialTheme.colorScheme.primary
+                )
             )
         }
     }
 }
 
+@Preview(showBackground = true, name = "Login - Modo Claro")
 @Composable
-fun ZenitInputField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    placeholder: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    iconOnLeft: Boolean,
-    isPassword: Boolean = false
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(65.dp), // Un poquito más de altura para que luzca la curva
-        shape = RoundedCornerShape(35.dp),
-        elevation = CardDefaults.cardElevation(6.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxSize(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // BLOQUE ICONO IZQUIERDA (Contraseña)
-            if (iconOnLeft) {
-                Box(
-                    modifier = Modifier
-                        .padding(4.dp) // Pequeño margen para que la curva no pegue al borde
-                        .fillMaxHeight()
-                        .width(70.dp)
-                        .background(
-                            color = colorBoton,
-                            shape = RoundedCornerShape(30.dp) // CURVA INTERNA
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(icon, null,
-                        tint = Color.White, modifier = Modifier.size(26.dp))
-                }
-            }
-
-            TextField(
-                value = value,
-                onValueChange = onValueChange,
-                placeholder = { Text(placeholder, color = Color.Gray, fontSize = 16.sp) },
-                modifier = Modifier.weight(1f),
-                visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent
-                ),
-                singleLine = true
-            )
-
-            // BLOQUE ICONO DERECHA (Email)
-            if (!iconOnLeft) {
-                Box(
-                    modifier = Modifier
-                        .padding(4.dp) // Pequeño margen para que la curva no pegue al borde
-                        .fillMaxHeight()
-                        .width(70.dp)
-                        .background(
-                            color = verdeFondo,
-                            shape = RoundedCornerShape(30.dp) // CURVA INTERNA
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(icon, null, tint = verdeOscuro, modifier = Modifier.size(26.dp))
-                }
-            }
-        }
+fun LoginScreenLightPreview() {
+    ZenitAppTheme(darkTheme = false) {
+        LoginScreen(
+            onNavigateToSignUp = {},
+            onLoginSuccess = {},
+            authViewModel = viewModel()
+        )
     }
 }
 
-
-@Preview(showBackground = true, showSystemUi = true)
+@Preview(showBackground = true, name = "Login - Modo Oscuro")
 @Composable
-fun LoginPreview() {
-    ZenitAppTheme {
-        LoginScreen(onNavigateToSignUp = {}, onLoginSuccess = {})
+fun LoginScreenDarkPreview() {
+    ZenitAppTheme(darkTheme = true) {
+        LoginScreen(
+            onNavigateToSignUp = {},
+            onLoginSuccess = {},
+            authViewModel = viewModel()
+        )
     }
 }
-

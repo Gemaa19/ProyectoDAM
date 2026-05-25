@@ -1,15 +1,16 @@
 package com.gema.zenitapp
 
-import android.widget.Toast
+import android.content.res.Configuration
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,15 +21,13 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.gema.zenitapp.componentes.ZenitInputField
 import com.gema.zenitapp.viewmodel.AuthViewModel
-import com.gema.zenitapp.ui.theme.BackgroundWhite
-import com.gema.zenitapp.ui.theme.colorBoton
-import com.gema.zenitapp.ui.theme.verdeOscuro
-import com.gema.zenitapp.ui.theme.verdeClaro
-import com.gema.zenitapp.ui.theme.verdeFondo
+import com.gema.zenitapp.ui.theme.ZenitAppTheme
 import com.gema.zenitapp.ui.theme.verdeTitulos
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -42,29 +41,30 @@ fun RegistroScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
-
-    var errorMessage by remember { mutableStateOf("") }
     var errorLocal by remember { mutableStateOf("") }
-    val context = LocalContext.current
+    var mostrarDialogoExito by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(BackgroundWhite)
+            .background(Color.White)
     ) {
 
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(250.dp)
-                .background(verdeFondo, shape = RoundedCornerShape(bottomEnd = 100.dp))
+                .background(
+                    color = MaterialTheme.colorScheme.background,
+                    shape = RoundedCornerShape(bottomEnd = 100.dp)
+                )
                 .padding(top = 50.dp),
             contentAlignment = Alignment.Center
         ) {
             Column(verticalArrangement = Arrangement.Center) {
                 Text(
                     text = "ZENIT",
-                    color = verdeOscuro,
+                    color = MaterialTheme.colorScheme.primary,
                     fontSize = 80.sp,
                     fontWeight = FontWeight.W900,
                     fontFamily = FontFamily.SansSerif,
@@ -96,7 +96,6 @@ fun RegistroScreen(
             ) {
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // CAMPO USUARIO
                 ZenitInputField(
                     value = userName,
                     onValueChange = { userName = it },
@@ -107,7 +106,6 @@ fun RegistroScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // CAMPO EMAIL
                 ZenitInputField(
                     value = email,
                     onValueChange = { email = it },
@@ -118,7 +116,6 @@ fun RegistroScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // CAMPO CONTRASEÑA
                 ZenitInputField(
                     value = password,
                     onValueChange = { password = it },
@@ -130,7 +127,6 @@ fun RegistroScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // CAMPO REPETIR CONTRASEÑA
                 ZenitInputField(
                     value = confirmPassword,
                     onValueChange = { confirmPassword = it },
@@ -140,41 +136,69 @@ fun RegistroScreen(
                     isPassword = true
                 )
 
-                if (errorLocal.isNotEmpty()) {
-                    Text(text = errorLocal, color = Color.Red, modifier = Modifier.padding(16.dp))
-                } else if (authViewModel.errorMessage.isNotEmpty()) {
-                    Text(text = authViewModel.errorMessage, color = Color.Red, modifier = Modifier.padding(16.dp))
+                val mensajeDeError = when {
+                    errorLocal.isNotEmpty() -> errorLocal
+                    authViewModel.errorMessage.isNotEmpty() -> authViewModel.errorMessage
+                    else -> ""
+                }
+
+                if (mensajeDeError.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color(0xFFFCE8E6)
+                        ),
+                        border = BorderStroke(1.dp, Color(0xFFF5B7B1).copy(alpha = 0.6f))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Warning,
+                                contentDescription = "Alerta de validación",
+                                tint = Color(0xFFA12620),
+                                modifier = Modifier.size(22.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = mensajeDeError,
+                                color = Color(0xFF5C1916),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
+                                lineHeight = 18.sp,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(35.dp))
 
                 Button(
                     onClick = {
-                        if (userName.isBlank() || email.isBlank() || password.isBlank()) {
+                        val contraseñaRobusta = "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=!_.,])(?=\\S+$).{8,}$".toRegex()
+
+                        if(userName.isBlank() || email.isBlank() || password.isBlank()) {
                             errorLocal = "Por favor, rellena todos los campos"
                         } else if (password != confirmPassword) {
                             errorLocal = "Las contraseñas no coinciden"
+                        } else if (!password.matches(contraseñaRobusta)) {
+                            errorLocal = "La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula, un número y un carácter especial"
                         } else {
-                            errorLocal = "" // Limpiamos el error de validación local
+                            errorLocal = ""
 
-                            // LLAMAMOS AL VIEWMODEL ACTUALIZADO
                             authViewModel.registrarUsuario(
                                 nombre = userName.trim(),
                                 correo = email.trim(),
                                 clave = password.trim(),
                                 onResult = { exito ->
                                     if (exito) {
-                                        // 1. Informamos visualmente al usuario
-                                        Toast.makeText(context, "Usuario registrado correctamente", Toast.LENGTH_LONG).show()
-
-                                        // 2. Vaciamos todos los campos del formulario
-                                        userName = ""
-                                        email = ""
-                                        password = ""
-                                        confirmPassword = ""
-
-                                        // 3. Regresamos de forma segura a la pantalla de Login
-                                        onNavigateToLogin()
+                                        mostrarDialogoExito = true
                                     }
                                 }
                             )
@@ -183,7 +207,7 @@ fun RegistroScreen(
                     modifier = Modifier.fillMaxWidth().height(55.dp),
                     enabled = !authViewModel.isLoading,
                     shape = RoundedCornerShape(30.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = colorBoton)
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.onBackground)
                 ) {
                     if (authViewModel.isLoading) {
                         CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
@@ -220,12 +244,89 @@ fun RegistroScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(70.dp)
-                .background(verdeFondo),
+                .background(MaterialTheme.colorScheme.background),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = "CONTROLA LO QUE GASTAS, DOMINA LO QUE AHORRAS",
-                style = TextStyle(fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
+                style = TextStyle(fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold, letterSpacing = 2.sp, color = MaterialTheme.colorScheme.primary)
+            )
+        }
+    }
+    if (mostrarDialogoExito) {
+        AlertDialog(
+            onDismissRequest = { },
+            containerColor = MaterialTheme.colorScheme.surface,
+            shape = RoundedCornerShape(28.dp),
+            confirmButton = {
+                Button(
+                    onClick = {
+                        mostrarDialogoExito = false
+                        userName = ""
+                        email = ""
+                        password = ""
+                        confirmPassword = ""
+                        onRegistroSuccess()
+                        onNavigateToLogin()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    shape = RoundedCornerShape(20.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)
+                ) {
+                    Text("Continuar al Login", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimary)
+                }
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = "Registro Exitoso",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(75.dp)
+                    )
+                    Spacer(Modifier.height(18.dp))
+                    Text(
+                        text = "¡Cuenta creada con éxito!",
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 22.sp,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = "Ya puedes iniciar sesión en ZenitApp y empezar a controlar tus finanzas inteligentes.",
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                        textAlign = TextAlign.Center,
+                        lineHeight = 20.sp
+                    )
+                }
+            }
+        )
+    }
+}
+@Preview(
+    name = "Modo Claro",
+    showBackground = true,
+    uiMode = Configuration.UI_MODE_NIGHT_NO
+)
+@Preview(
+    name = "Modo Oscuro",
+    showBackground = true,
+    uiMode = Configuration.UI_MODE_NIGHT_YES
+)
+@Composable
+fun RegistroScreenPreview() {
+    ZenitAppTheme {
+        Surface(color = MaterialTheme.colorScheme.background) {
+            RegistroScreen(
+                onNavigateToLogin = {},
+                onRegistroSuccess = {},
             )
         }
     }

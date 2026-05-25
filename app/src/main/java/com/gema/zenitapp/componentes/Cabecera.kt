@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -18,8 +19,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.gema.zenitapp.ui.theme.verdeFondo
-import com.gema.zenitapp.ui.theme.verdeOscuro
 
 @Composable
 fun CabeceraPrincipal(
@@ -30,12 +29,13 @@ fun CabeceraPrincipal(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(verdeFondo)
+            .background(MaterialTheme.colorScheme.background)
             .padding(16.dp)
     ) {
         Icon(
             imageVector = Icons.Default.Menu,
             contentDescription = "Menú lateral",
+            tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier
                 .size(40.dp)
                 .align(Alignment.CenterStart)
@@ -44,7 +44,7 @@ fun CabeceraPrincipal(
 
         Text(
             text = titulo,
-            color = verdeOscuro,
+            color = MaterialTheme.colorScheme.primary,
             fontSize = tamañoLetra.sp,
             fontWeight = FontWeight.W900,
             fontFamily = FontFamily.SansSerif,

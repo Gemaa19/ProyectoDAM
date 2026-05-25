@@ -6,8 +6,8 @@ import kotlinx.serialization.Serializable
 data class SolicitudTransaccion(
     val monto: Double,
     val descripcion: String?,
-    val tipo: String,       // "INGRESO" o "GASTO"
-    val fecha: String,      // <-- NUEVO: Recibe la fecha elegida desde la App (ej: "2026-05-17")
+    val tipo: String,
+    val fecha: String,
     val categoriaId: Long?
 )
 

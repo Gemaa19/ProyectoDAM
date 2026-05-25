@@ -1,26 +1,11 @@
 package com.gema.zenitapp.api
 
-import com.gema.zenit.models.CategoriaResponse
-import com.gema.zenit.models.LoginUsuario
-import com.gema.zenit.models.RegistroUsuarios
-import com.gema.zenit.models.RespuestaAutenticacion
-import com.gema.zenit.models.RespuestaMeta
-import com.gema.zenit.models.RespuestaPresupuesto
-import com.gema.zenit.models.SolicitudCategoria
-import com.gema.zenit.models.SolicitudMeta
-import com.gema.zenit.models.SolicitudPresupuesto
-import com.gema.zenit.models.SolicitudTransaccion
-import com.gema.zenit.models.TransaccionResponse
+import com.gema.zenit.models.*
 import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.*
 
 interface ZenitApiService {
-
-    // ==========================================
-    // 1. AUTENTICACIÓN (Rutas públicas sin Token)
-    // ==========================================
-
     @POST("/auth/register")
     suspend fun registrar(
         @Body datos: RegistroUsuarios
@@ -31,16 +16,11 @@ interface ZenitApiService {
         @Body datos: LoginUsuario
     ): Response<RespuestaAutenticacion>
 
-    // Añade esto en tu interfaz de Retrofit
-    @PUT("/usuarios/actualizar")
-    suspend fun actualizarNombre(
+    @PUT("/usuarios/actualizar-nombre")
+    suspend fun actualizarUsername(
         @Header("Authorization") token: String,
-        @Body nuevoNombre: String // O una clase DTO si tu Ktor recibe un objeto JSON
+        @Body nuevoNombre: ActualizarNombreRequest
     ): Response<Any>
-
-    // ==========================================
-    // 2. TRANSACCIONES / MOVIMIENTOS (Rutas protegidas)
-    // ==========================================
 
     @GET("/transacciones")
     suspend fun obtenerTransacciones(
@@ -53,25 +33,19 @@ interface ZenitApiService {
         @Body transaccion: SolicitudTransaccion
     ): Response<Any>
 
-    @PUT("/transacciones/{id}")
+    @PUT("transacciones/{id}")
     suspend fun editarTransaccion(
         @Header("Authorization") token: String,
         @Path("id") id: Long,
         @Body transaccion: SolicitudTransaccion
-    ): Response<Any>
+    ): Response<Void>
 
-    // CORRECCIÓN: Nombre cambiado de borrarTransaccion a eliminarTransaccion
-    // para que coincida exactamente con lo que busca tu AuthViewModel
     @DELETE("/transacciones/{id}")
     suspend fun eliminarTransaccion(
         @Header("Authorization") token: String,
         @Path("id") id: Long
     ): Response<Any>
 
-
-    // ==========================================
-    // 3. CATEGORÍAS (Rutas protegidas)
-    // ==========================================
 
     @GET("/categorias")
     suspend fun obtenerCategorias(
@@ -91,16 +65,12 @@ interface ZenitApiService {
         @Body categoria: SolicitudCategoria
     ): Response<Any>
 
+    // 💡 SOLUCIÓN: Cambiado 'borrarCategoria' por 'eliminarCategoria'
     @DELETE("/categorias/{id}")
-    suspend fun borrarCategoria(
+    suspend fun eliminarCategoria(
         @Header("Authorization") token: String,
         @Path("id") id: Long
     ): Response<Any>
-
-
-    // ==========================================
-    // 4. METAS / OBJETIVOS / PRESUPUESTOS (Rutas unificadas de AWS)
-    // ==========================================
 
     @GET("/metas")
     suspend fun obtenerMetas(
@@ -126,23 +96,39 @@ interface ZenitApiService {
         @Path("id") id: Long
     ): Response<Any>
 
-
-    // ==========================================
-    // 5. PRESUPUESTOS INDEPENDIENTES (Opcionales)
-    // ==========================================
-    // Nota: Déjalos solo si tu Ktor en AWS los gestiona en tablas y rutas
-    // distintas a las de la sección 4 (/metas).
-
     @GET("/presupuestos")
     suspend fun obtenerPresupuestos(
         @Header("Authorization") token: String
     ): Response<List<RespuestaPresupuesto>>
-    // <-- Cambiado para recibir tu modelo real de salida
 
     @POST("/presupuestos")
     suspend fun guardarPresupuesto(
         @Header("Authorization") token: String,
         @Body presupuesto: SolicitudPresupuesto
     ): Response<Any>
-}
 
+    @PUT("/presupuestos/{id}")
+    suspend fun editarPresupuesto(
+        @Header("Authorization") token: String,
+        @Path("id") id: Long,
+        @Body presupuesto: SolicitudPresupuesto
+    ): Response<Any>
+
+    // 💡 EXTRA: Faltaba el DELETE de presupuestos mapeado hacia Ktor
+    @DELETE("/presupuestos/{id}")
+    suspend fun borrarPresupuesto(
+        @Header("Authorization") token: String,
+        @Path("id") id: Long
+    ): Response<Any>
+
+    @POST("/transacciones/recordatorios")
+    suspend fun guardarRecordatorioFuturo(
+        @Header("Authorization") token: String,
+        @Body recordatorio: SolicitudTransaccion
+    ): Response<Any>
+
+    @POST("/transacciones/procesar-pendientes")
+    suspend fun procesarRecordatoriosDelDia(
+        @Header("Authorization") token: String
+    ): Response<Any>
+}

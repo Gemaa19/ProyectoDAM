@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
@@ -20,8 +21,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.gema.zenitapp.ui.theme.verdeIconos
-import com.gema.zenitapp.ui.theme.verdeFondo
 
 @Composable
 fun BarraNavegacionInferior(
@@ -32,7 +31,7 @@ fun BarraNavegacionInferior(
     onObjetivosClick: () -> Unit,
 ) {
     NavigationBar(
-        containerColor = verdeFondo,
+        containerColor = MaterialTheme.colorScheme.background,
         tonalElevation = 0.dp,
         modifier = Modifier.height(100.dp)
     ) {
@@ -44,7 +43,6 @@ fun BarraNavegacionInferior(
         )
 
         items.forEach { item ->
-            // 3. SELECCIÓN AUTOMÁTICA: Ya no necesitamos "pestañaSeleccionada" manual
             val seleccionado = pantallaActual == item.first
 
             NavigationBarItem(
@@ -54,7 +52,7 @@ fun BarraNavegacionInferior(
                             .padding(top = 25.dp)
                             .size(50.dp)
                             .background(
-                                color = if (seleccionado) Color.White else verdeIconos,
+                                color = if (seleccionado) Color.White else MaterialTheme.colorScheme.secondary,
                                 shape = androidx.compose.foundation.shape.CircleShape
                             ),
                         contentAlignment = Alignment.Center
@@ -62,7 +60,7 @@ fun BarraNavegacionInferior(
                         Icon(
                             imageVector = item.second,
                             contentDescription = item.first,
-                            tint = if (seleccionado) verdeIconos else Color.White
+                            tint = if (seleccionado) MaterialTheme.colorScheme.secondary else Color.White
                         )
                     }
                 },

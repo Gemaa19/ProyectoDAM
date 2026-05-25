@@ -1,6 +1,5 @@
 package com.gema.zenitapp.ui.theme
 
-import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
@@ -9,35 +8,50 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
+    onPrimary = verdeOscuro,
+    primary = verdeFondo,
+
+    background = verdeOscuro,
+
+
+    secondary = verdeIconos,
+    tertiary = rosaClaro,
+
+
+    scrim = Color.Black.copy(alpha = 0.5f),
+    surface = Color(0xFF1B2925),
+    surfaceVariant = Color(0xFF243530),
+
+
+    onBackground = verdeOscuro,
+    onSurface = Color(0xFFE1F5F1),
+    onSurfaceVariant = verdeClaro,
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = verdeFondo,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
+    primary = verdeOscuro,
 
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
     onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+
+    secondary = verdeIconos,
+    tertiary = rosa,
+    background = verdeFondo,
+    scrim = Color.Gray,
+    surface = verdeClaro,
+    surfaceVariant = verdeGrisaceo,
+    onBackground = colorBoton,
+    onSurface = colorBotonGeneral,
+    onSurfaceVariant = verdeTitulos
 )
 
 @Composable
 fun ZenitAppTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {

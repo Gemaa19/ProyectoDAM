@@ -8,6 +8,6 @@ data class Movimiento(
     val categoria: String,
     val cantidad: String,
     val esIngreso: Boolean,
-    val icono: ImageVector, // Asegúrate de que usa ImageVector de Compose
-    val color: Color        // Asegúrate de que usa Color de Compose
+    val icono: ImageVector,
+    val color: Color
 )

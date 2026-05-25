@@ -6,7 +6,8 @@ import kotlinx.serialization.Serializable
 data class CategoriaResponse(
     val id: Long,
     val nombre: String,
-    val icono: String?
+    val icono: String?,
+    val usuarioId: Long? = null
 )
 
 @Serializable

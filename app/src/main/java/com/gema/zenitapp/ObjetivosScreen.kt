@@ -24,7 +24,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.gema.zenitapp.componentes.BarraNavegacionInferior
 import com.gema.zenitapp.componentes.CabeceraPrincipal
 import com.gema.zenitapp.ui.theme.colorBotonGeneral
-import com.gema.zenitapp.ui.theme.verdeFondo
 import com.gema.zenitapp.ui.theme.verdeOscuro
 import com.gema.zenitapp.ui.theme.verdeTitulos
 import com.gema.zenitapp.viewmodel.AuthViewModel
@@ -36,12 +35,17 @@ fun ObjetivosScreen(
     onNavigateToInicio: () -> Unit,
     onNavigateToMovimientos: () -> Unit,
     onNavigateToAnalisis: () -> Unit,
-    // 💡 CAMBIO: Ahora el callback propaga el ID y el tipo para saber qué editar
-    onNavigateToNuevoObjetivo: (id: Long?, tipo: String) -> Unit,
+    onNavigateToNuevoObjetivo: (id: String?, tipo: String) -> Unit,
+    pestañaInicial: String = "Presupuestos",
     authViewModel: AuthViewModel = viewModel()
 ) {
     val context = LocalContext.current
-    var filtroSeleccionado by remember { mutableStateOf("Presupuestos") }
+    var filtroSeleccionado by remember { mutableStateOf(pestañaInicial) }
+
+    LaunchedEffect(pestañaInicial) {
+        filtroSeleccionado = pestañaInicial
+    }
+
     val presupuestosReales = authViewModel.listaPresupuestos
     val metasReales = authViewModel.listaMetas
 
@@ -95,6 +99,9 @@ fun ObjetivosScreen(
                     }
                 } else {
                     if (filtroSeleccionado == "Presupuestos") {
+                        val presupuestosMensuales = presupuestosReales.filter { it.mes != 13 }
+                        val presupuestosAnuales = presupuestosReales.filter { it.mes == 13 }
+
                         if (presupuestosReales.isEmpty()) {
                             item {
                                 Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
@@ -102,39 +109,82 @@ fun ObjetivosScreen(
                                 }
                             }
                         } else {
-                            items(presupuestosReales) { presupuesto ->
-                                val catId = presupuesto.categoriaId
-                                val totalGastadoEnEstaCategoria = authViewModel.listaMovimientos
-                                    .filter { it.tipo == "GASTO" && it.categoriaId == catId }
-                                    .sumOf { it.monto }
+                            if (presupuestosMensuales.isNotEmpty()) {
+                                item {
+                                    Text("Mensual", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = verdeOscuro, modifier = Modifier.padding(start = 22.dp, top = 10.dp, bottom = 6.dp))
+                                }
+                                items(presupuestosMensuales) { presupuesto ->
+                                    val catId = presupuesto.categoriaId
+                                    val totalGastadoEnEstaCategoria = authViewModel.listaMovimientos
+                                        .filter { it.tipo == "GASTO" && it.categoriaId == catId }
+                                        .sumOf { it.monto }
 
-                                val porcentajeProgreso = if (presupuesto.montoLimite > 0) (totalGastadoEnEstaCategoria / presupuesto.montoLimite).toFloat() else 0f
+                                    val porcentajeProgreso = if (presupuesto.montoLimite > 0) (totalGastadoEnEstaCategoria / presupuesto.montoLimite).toFloat() else 0f
 
-                                ItemObjetivoRealEstilizado(
-                                    nombre = presupuesto.nombreCategoria ?: "Categoría",
-                                    cantidadTexto = "${String.format("%.2f", totalGastadoEnEstaCategoria)}€ / ${String.format("%.2f", presupuesto.montoLimite)}€",
-                                    progreso = porcentajeProgreso.coerceIn(0f, 1f),
-                                    esProgresoCero = totalGastadoEnEstaCategoria == 0.0,
-                                    icono = when (catId) {
-                                        1L -> Icons.Default.Home
-                                        2L -> Icons.Default.ElectricBolt
-                                        3L -> Icons.Default.DirectionsCar
-                                        4L -> Icons.Default.Restaurant
-                                        else -> Icons.Default.CreditCard
-                                    },
-                                    colorBarra = if (porcentajeProgreso >= 0.9f) Color(0xFFB2130F) else verdeOscuro,
-                                    // 💡 SOLUCIÓN EDITAR PRESUPUESTO
-                                    onEditarClick = { onNavigateToNuevoObjetivo(presupuesto.id, "PRESUPUESTO") },
-                                    // 💡 SOLUCIÓN BORRAR PRESUPUESTO
-                                    onEliminarClick = {
-                                        authViewModel.eliminarPresupuestoBBDD(context, presupuesto.id) {
-                                            Toast.makeText(context, "Presupuesto eliminado", Toast.LENGTH_SHORT).show()
+                                    ItemObjetivoRealEstilizado(
+                                        nombre = presupuesto.nombreCategoria ?: "Categoría",
+                                        cantidadTexto = "${String.format("%.2f", totalGastadoEnEstaCategoria)}€ / ${String.format("%.2f", presupuesto.montoLimite)}€",
+                                        progreso = porcentajeProgreso.coerceIn(0f, 1f),
+                                        esProgresoCero = totalGastadoEnEstaCategoria == 0.0,
+                                        icono = when (catId) {
+                                            1L -> Icons.Default.Home
+                                            2L -> Icons.Default.ElectricBolt
+                                            3L -> Icons.Default.DirectionsCar
+                                            4L -> Icons.Default.Restaurant
+                                            else -> Icons.Default.CreditCard
+                                        },
+                                        colorBarra = if (porcentajeProgreso >= 0.9f) Color(0xFFB2130F) else verdeOscuro,
+                                        onEditarClick = { onNavigateToNuevoObjetivo(presupuesto.id.toString(), "PRESUPUESTO") },
+                                        onEliminarClick = {
+                                            authViewModel.eliminarPresupuestoBBDD(context, presupuesto.id) {
+                                                Toast.makeText(context, "Presupuesto eliminado", Toast.LENGTH_SHORT).show()
+                                                authViewModel.obtenerObjetivosBBDD(context)
+                                            }
                                         }
-                                    }
-                                )
+                                    )
+                                }
+                            }
+
+                            if (presupuestosAnuales.isNotEmpty()) {
+                                item {
+                                    Text("Anual", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = verdeOscuro, modifier = Modifier.padding(start = 22.dp, top = 16.dp, bottom = 6.dp))
+                                }
+                                items(presupuestosAnuales) { presupuesto ->
+                                    val catId = presupuesto.categoriaId
+                                    val totalGastadoEnEstaCategoria = authViewModel.listaMovimientos
+                                        .filter { it.tipo == "GASTO" && it.categoriaId == catId }
+                                        .sumOf { it.monto }
+
+                                    val porcentajeProgreso = if (presupuesto.montoLimite > 0) (totalGastadoEnEstaCategoria / presupuesto.montoLimite).toFloat() else 0f
+
+                                    ItemObjetivoRealEstilizado(
+                                        nombre = presupuesto.nombreCategoria ?: "Categoría",
+                                        cantidadTexto = "${String.format("%.2f", totalGastadoEnEstaCategoria)}€ / ${String.format("%.2f", presupuesto.montoLimite)}€",
+                                        progreso = porcentajeProgreso.coerceIn(0f, 1f),
+                                        esProgresoCero = totalGastadoEnEstaCategoria == 0.0,
+                                        icono = when (catId) {
+                                            1L -> Icons.Default.Home
+                                            2L -> Icons.Default.ElectricBolt
+                                            3L -> Icons.Default.DirectionsCar
+                                            4L -> Icons.Default.Restaurant
+                                            else -> Icons.Default.CreditCard
+                                        },
+                                        colorBarra = if (porcentajeProgreso >= 0.9f) Color(0xFFB2130F) else verdeOscuro,
+                                        onEditarClick = { onNavigateToNuevoObjetivo(presupuesto.id.toString(), "PRESUPUESTO") },
+                                        onEliminarClick = {
+                                            authViewModel.eliminarPresupuestoBBDD(context, presupuesto.id) {
+                                                Toast.makeText(context, "Presupuesto eliminado", Toast.LENGTH_SHORT).show()
+                                                authViewModel.obtenerObjetivosBBDD(context)
+                                            }
+                                        }
+                                    )
+                                }
                             }
                         }
                     } else {
+                        val metasMensuales = metasReales.filter { it.fechaLimite != null && !it.fechaLimite.contains("-12-31") }
+                        val metasAnuales = metasReales.filter { it.fechaLimite != null && it.fechaLimite.contains("-12-31") }
+
                         if (metasReales.isEmpty()) {
                             item {
                                 Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
@@ -142,30 +192,56 @@ fun ObjetivosScreen(
                                 }
                             }
                         } else {
-                            items(metasReales) { meta ->
-                                ItemObjetivoRealEstilizado(
-                                    nombre = meta.nombre ?: "Meta sin nombre",
-                                    cantidadTexto = "${String.format("%.2f", meta.ahorrado)}€ / ${String.format("%.2f", meta.objetivo)}€",
-                                    progreso = (meta.progreso / 100.0).toFloat().coerceIn(0f, 1f),
-                                    esProgresoCero = meta.ahorrado == 0.0,
-                                    icono = Icons.Default.TrackChanges,
-                                    colorBarra = Color(0xFF029B09),
-                                    // 💡 SOLUCIÓN EDITAR META
-                                    onEditarClick = { onNavigateToNuevoObjetivo(meta.id, "META") },
-                                    // 💡 SOLUCIÓN BORRAR META
-                                    onEliminarClick = {
-                                        authViewModel.eliminarMetaBBDD(context, meta.id) {
-                                            Toast.makeText(context, "Meta de ahorro eliminada", Toast.LENGTH_SHORT).show()
+                            if (metasMensuales.isNotEmpty()) {
+                                item {
+                                    Text("Mensual", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = verdeOscuro, modifier = Modifier.padding(start = 22.dp, top = 10.dp, bottom = 6.dp))
+                                }
+                                items(metasMensuales) { meta ->
+                                    ItemObjetivoRealEstilizado(
+                                        nombre = meta.nombre ?: "Meta sin nombre",
+                                        cantidadTexto = "${String.format("%.2f", meta.ahorrado)}€ / ${String.format("%.2f", meta.objetivo)}€",
+                                        progreso = (meta.progreso / 100.0).toFloat().coerceIn(0f, 1f),
+                                        esProgresoCero = meta.ahorrado == 0.0,
+                                        icono = Icons.Default.TrackChanges,
+                                        colorBarra = verdeOscuro,
+                                        onEditarClick = { onNavigateToNuevoObjetivo(meta.id.toString(), "META") },
+                                        onEliminarClick = {
+                                            authViewModel.eliminarMetaBBDD(context, meta.id) {
+                                                Toast.makeText(context, "Meta de ahorro eliminada", Toast.LENGTH_SHORT).show()
+                                                authViewModel.obtenerObjetivosBBDD(context)
+                                            }
                                         }
-                                    }
-                                )
+                                    )
+                                }
+                            }
+
+                            if (metasAnuales.isNotEmpty()) {
+                                item {
+                                    Text("Anual", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = verdeOscuro, modifier = Modifier.padding(start = 22.dp, top = 16.dp, bottom = 6.dp))
+                                }
+                                items(metasAnuales) { meta ->
+                                    ItemObjetivoRealEstilizado(
+                                        nombre = meta.nombre ?: "Meta sin nombre",
+                                        cantidadTexto = "${String.format("%.2f", meta.ahorrado)}€ / ${String.format("%.2f", meta.objetivo)}€",
+                                        progreso = (meta.progreso / 100.0).toFloat().coerceIn(0f, 1f),
+                                        esProgresoCero = meta.ahorrado == 0.0,
+                                        icono = Icons.Default.TrackChanges,
+                                        colorBarra = verdeOscuro,
+                                        onEditarClick = { onNavigateToNuevoObjetivo(meta.id.toString(), "META") },
+                                        onEliminarClick = {
+                                            authViewModel.eliminarMetaBBDD(context, meta.id) {
+                                                Toast.makeText(context, "Meta de ahorro eliminada", Toast.LENGTH_SHORT).show()
+                                                authViewModel.obtenerObjetivosBBDD(context)
+                                            }
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
                 }
             }
 
-            // BOTÓN AÑADIR NUEVO OBJETIVO LIMPIO
             Box(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = 14.dp),
                 contentAlignment = Alignment.Center
@@ -200,7 +276,7 @@ fun ItemObjetivoRealEstilizado(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(90.dp) // Incrementado para albergar perfectamente las 3 líneas verticales
+            .height(90.dp)
             .padding(horizontal = 20.dp, vertical = 6.dp),
         shape = RoundedCornerShape(22.dp),
         elevation = CardDefaults.cardElevation(5.dp),
@@ -210,24 +286,22 @@ fun ItemObjetivoRealEstilizado(
             modifier = Modifier.fillMaxSize(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Contenedor izquierdo del icono
             Box(
                 modifier = Modifier
                     .padding(6.dp)
                     .fillMaxHeight()
                     .width(62.dp)
-                    .background(color = verdeFondo, shape = RoundedCornerShape(18.dp)),
+                    .background(color = MaterialTheme.colorScheme.background, shape = RoundedCornerShape(18.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = icono,
                     contentDescription = null,
-                    tint = verdeOscuro,
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(26.dp)
                 )
             }
 
-            // 💡 REESTRUCTURACIÓN: Todo alineado en vertical (Nombre -> Dinero -> Barra)
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -253,14 +327,12 @@ fun ItemObjetivoRealEstilizado(
                 LinearProgressIndicator(
                     progress = { if (esProgresoCero) 0f else progreso },
                     modifier = Modifier.fillMaxWidth().height(6.dp),
-                    // 💡 Si el dinero es 0, la pista se vuelve completamente gris uniforme
                     color = if (esProgresoCero) Color(0xFFF0F2F5) else colorBarra,
                     trackColor = Color(0xFFF0F2F5),
                     strokeCap = StrokeCap.Round
                 )
             }
 
-            // Botones de control a la derecha intactos
             Row(
                 modifier = Modifier.padding(end = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(2.dp),

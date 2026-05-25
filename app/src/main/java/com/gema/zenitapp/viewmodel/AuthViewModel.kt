@@ -27,11 +27,11 @@ import com.gema.zenitapp.api.ZenitApiService
 import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Intent
+import com.gema.zenit.models.ActualizarNombreRequest
 import com.gema.zenitapp.MiNotificacionReceiver
 import java.time.LocalDate
 import java.time.ZoneId
 
-// Modelo local auxiliar para guardar la sesión activa en el Frontend
 data class UsuarioSesion(
     val id: Long,
     var nombre: String,
@@ -47,8 +47,6 @@ class AuthViewModel : ViewModel() {
     var errorMessage by mutableStateOf("")
         private set
 
-    // AÑADIDO: Guardará la información del perfil para que la lea HamburguesaScreen
-    // Dentro de tu AuthViewModel.kt, revisa que la propiedad esté declarada así:
     var usuarioLogueado by mutableStateOf<UsuarioSesion?>(null)
         private set
 
@@ -63,12 +61,8 @@ class AuthViewModel : ViewModel() {
     var listaMetas by mutableStateOf<List<RespuestaMeta>>(listOf())
         private set
 
-    // REGISTRO DE USUARIOS
-    // 💡 AÑADE ESTO EN TU AUTHVIEWMODEL.KT
     var listaCategorias by mutableStateOf<List<com.gema.zenit.models.CategoriaResponse>>(listOf())
         private set
-
-    // Método para descargar todas las categorías (Globales + Propias) de AWS
     fun obtenerCategoriasBBDD(context: Context) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -89,7 +83,6 @@ class AuthViewModel : ViewModel() {
         }
     }
 
-    // Método para crear una nueva categoría desde la pestaña flotante de la Hamburguesa
     fun crearCategoriaEnBBDD(context: Context, nombreCat: String, iconoCat: String, onSuccess: () -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -111,6 +104,62 @@ class AuthViewModel : ViewModel() {
             }
         }
     }
+    fun eliminarCategoriaBBDD(context: Context, idCategoria: Long, onEliminadoOk: () -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val prefs = context.getSharedPreferences("zenit_prefs", Context.MODE_PRIVATE)
+                val token = prefs.getString("token_jwt", null)
+
+                if (token != null) {
+                    val headerToken = "Bearer $token"
+                    val respuesta = RetrofitClient.instancia.eliminarCategoria(headerToken, idCategoria)
+
+                    withContext(Dispatchers.Main) {
+                        if (respuesta.isSuccessful) {
+                            Toast.makeText(context, "Categoría eliminada con éxito", Toast.LENGTH_SHORT).show()
+                            onEliminadoOk()
+                        } else if (respuesta.code() == 409 || respuesta.code() == 500) {
+                            Toast.makeText(
+                                context,
+                                "No puedes eliminar esta categoría porque contiene movimientos u objetivos asociados.",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        } else {
+                            Toast.makeText(context, "Error al intentar borrar la categoría", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Log.e("ZENIT_DEBUG", "Fallo de red: ${e.message}")
+                    Toast.makeText(context, "Error de conexión con el servidor de AWS", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+    fun editarCategoriaEnBBDD(context: Context, idCategoria: Long, nuevoNombre: String, nuevoIcono: String, onEdicionOk: () -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val prefs = context.getSharedPreferences("zenit_prefs", Context.MODE_PRIVATE)
+                val token = prefs.getString("token_jwt", null)
+
+                if (token != null) {
+                    val headerToken = "Bearer $token"
+                    val solicitud = com.gema.zenit.models.SolicitudCategoria(nombre = nuevoNombre, icono = nuevoIcono)
+                    val respuesta = RetrofitClient.instancia.editarCategoria(headerToken, idCategoria, solicitud)
+
+                    if (respuesta.isSuccessful) {
+                        withContext(Dispatchers.Main) {
+                            onEdicionOk()
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("ZENIT_DEBUG", "Error de red al actualizar nombre de categoría: ${e.message}")
+            }
+        }
+    }
+
     fun registrarUsuario(nombre: String, correo: String, clave: String, onResult: (Boolean) -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
             withContext(Dispatchers.Main) {
@@ -141,7 +190,6 @@ class AuthViewModel : ViewModel() {
         }
     }
 
-    // LÓGICA DE LOGIN (CORREGIDA: Ahora guarda los datos reales de AWS)
     fun loginUsuario(context: Context, correo: String, clave: String, onResult: (Boolean) -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
             withContext(Dispatchers.Main) {
@@ -156,7 +204,6 @@ class AuthViewModel : ViewModel() {
                     val body = respuesta.body()!!
                     val tokenRecibido = body.token
 
-                    // Guardamos TODO en SharedPreferences para que no se borre al reiniciar
                     val prefs = context.getSharedPreferences("zenit_prefs", Context.MODE_PRIVATE)
                     prefs.edit().apply {
                         putString("token_jwt", tokenRecibido)
@@ -193,7 +240,7 @@ class AuthViewModel : ViewModel() {
         }
     }
 
-    fun actualizarNombreEnServidor(context: Context, nuevoNombre: String) {
+    fun actualizarNombreUsuarioBBDD(context: Context, nuevoNombre: String, onSuccess: () -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val prefs = context.getSharedPreferences("zenit_prefs", Context.MODE_PRIVATE)
@@ -201,17 +248,28 @@ class AuthViewModel : ViewModel() {
 
                 if (token != null) {
                     val headerToken = "Bearer $token"
-                    // Enviamos la petición HTTP PUT a la instancia de AWS
-                    RetrofitClient.instancia.actualizarNombre(headerToken, nuevoNombre)
-                    Log.d("ZENIT_DEBUG", "Nombre sincronizado con la BBDD de AWS")
+                    val request = ActualizarNombreRequest(nuevoNombre)
+
+                    val respuesta = RetrofitClient.instancia.actualizarUsername(headerToken, request)
+
+                    if (respuesta.isSuccessful) {
+                        withContext(Dispatchers.Main) {
+                            usuarioLogueado?.let {
+                                usuarioLogueado = it.copy(nombre = nuevoNombre)
+                            }
+
+                            prefs.edit().putString("user_name", nuevoNombre).apply()
+
+                            onSuccess()
+                        }
+                    }
                 }
             } catch (e: Exception) {
-                Log.e("ZENIT_DEBUG", "Error de red al actualizar nombre: ${e.message}")
+                Log.e("AuthViewModel", "Error al actualizar perfil: ${e.message}")
             }
         }
     }
 
-    // 💡 AÑADE ESTO DENTRO DE TU AUTHVIEWMODEL.KT
     fun cargarSesionLocal(context: Context) {
         val prefs = context.getSharedPreferences("zenit_prefs", Context.MODE_PRIVATE)
         val token = prefs.getString("token_jwt", null)
@@ -220,7 +278,6 @@ class AuthViewModel : ViewModel() {
         val id = prefs.getLong("user_id", -1L)
         val rol = prefs.getString("user_rol", "USER")
 
-        // Si hay un token y datos guardados, restauramos el usuarioLogueado inmediatamente
         if (token != null && name != null && email != null && id != -1L) {
             usuarioLogueado = UsuarioSesion(
                 id = id,
@@ -231,13 +288,11 @@ class AuthViewModel : ViewModel() {
             Log.d("ZENIT_DEBUG", "Sesión recuperada localmente de: $name")
         }
     }
-    // TRAER MOVIMIENTOS DESDE AWS ESTOCOLMO
     fun obtenerMovimientosBBDD(context: Context) {
         viewModelScope.launch(Dispatchers.IO) {
             withContext(Dispatchers.Main) { isLoading = true }
             try {
                 val prefs = context.getSharedPreferences("zenit_prefs", Context.MODE_PRIVATE)
-                // 💡 CORRECCIÓN: Cambiado "auth_token" por "token_jwt"
                 val token = prefs.getString("token_jwt", null)
 
                 if (token != null) {
@@ -261,7 +316,6 @@ class AuthViewModel : ViewModel() {
         }
     }
 
-    // GUARDAR MOVIMIENTO
     @RequiresApi(Build.VERSION_CODES.O)
     fun guardarMovimientoenBBDD(
         context: Context,
@@ -276,7 +330,6 @@ class AuthViewModel : ViewModel() {
             withContext(Dispatchers.Main) { isLoading = true }
             try {
                 val prefs = context.getSharedPreferences("zenit_prefs", Context.MODE_PRIVATE)
-                // 💡 CORRECCIÓN: Cambiado "auth_token" por "token_jwt"
                 val token = prefs.getString("token_jwt", null)
 
                 if (token != null) {
@@ -290,25 +343,40 @@ class AuthViewModel : ViewModel() {
                     )
 
                     val respuesta = RetrofitClient.instancia.guardarTransaccion(headerToken, nuevaTransaccion)
+
                     if (respuesta.isSuccessful) {
-                        withContext(Dispatchers.Main) { onSuccess() }
+                        withContext(Dispatchers.Main) {
+                            try {
+                                onSuccess()
+                            } catch (e: Exception) {
+                                Log.e("ZENIT_DEBUG", "Error dentro del callback onSuccess de la UI: ${e.message}")
+                            }
+                        }
+                    } else {
+                        val codigoError = respuesta.code()
+                        val cuerpoError = respuesta.errorBody()?.string() ?: "Error desconocido"
+                        Log.e("ZENIT_DEBUG", "Error de AWS ($codigoError): $cuerpoError")
+
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(context, "Error en el servidor: $codigoError", Toast.LENGTH_SHORT).show()
+                        }
                     }
                 }
             } catch (e: Exception) {
                 Log.e("ZENIT_DEBUG", "EXCEPCIÓN de red en AWS: ${e.message}")
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Error de red: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                }
             } finally {
                 withContext(Dispatchers.Main) { isLoading = false }
             }
         }
     }
-
-    // ELIMINAR MOVIMIENTO
     fun eliminarMovimientoBBDD(context: Context, idTransaccion: Long, onSuccess: () -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
             withContext(Dispatchers.Main) { isLoading = true }
             try {
                 val prefs = context.getSharedPreferences("zenit_prefs", Context.MODE_PRIVATE)
-                // 💡 CORRECCIÓN: Cambiado "auth_token" por "token_jwt"
                 val token = prefs.getString("token_jwt", null)
 
                 if (token != null) {
@@ -330,13 +398,11 @@ class AuthViewModel : ViewModel() {
         }
     }
 
-    // GUARDAR METAS DE AHORRO
-    // 💡 CORRECCIÓN EN TU AUTHVIEWMODEL.KT: Añadimos el parámetro 'ahorrado' para AWS
     fun guardarMetaEnBBDD(
         context: Context,
         name: String,
         objetivo: Double,
-        ahorrado: Double, // 💡 NUEVO: Recibe la cantidad acumulada inicial desde la pantalla
+        ahorrado: Double,
         fechaLimite: String?,
         onSuccess: () -> Unit
     ) {
@@ -349,11 +415,10 @@ class AuthViewModel : ViewModel() {
                 if (token != null) {
                     val headerToken = "Bearer $token"
 
-                    // 💡 ACTUALIZACIÓN: Tu DTO 'SolicitudMeta' ahora recibe el valor de ahorrado
                     val nuevaMeta = SolicitudMeta(
                         nombre = name,
                         objetivo = objetivo,
-                        ahorrado = ahorrado, // Asegúrate de que tu data class SolicitudMeta tenga este campo
+                        ahorrado = ahorrado,
                         fechaLimite = fechaLimite
                     )
 
@@ -370,14 +435,11 @@ class AuthViewModel : ViewModel() {
         }
     }
 
-    // TRAER OBJETIVOS (METAS Y PRESUPUESTOS POR SEPARADO)
-    // TRAER OBJETIVOS (Metas y Presupuestos) corregido con la clave real del Token
     fun obtenerObjetivosBBDD(context: Context) {
         viewModelScope.launch(Dispatchers.IO) {
             withContext(Dispatchers.Main) { isLoading = true }
             try {
                 val prefs = context.getSharedPreferences("zenit_prefs", Context.MODE_PRIVATE)
-                // 💡 CORRECCIÓN: Cambiado "auth_token" por "token_jwt"
                 val token = prefs.getString("token_jwt", null)
 
                 if (token != null) {
@@ -402,7 +464,6 @@ class AuthViewModel : ViewModel() {
         }
     }
 
-    // AÑADIDO: Resetea el estado local del ViewModel al cerrar sesión
     fun logout() {
         usuarioLogueado = null
         listaMovimientos.clear()
@@ -422,7 +483,7 @@ class AuthViewModel : ViewModel() {
             withContext(Dispatchers.Main) { isLoading = true }
             try {
                 val prefs = context.getSharedPreferences("zenit_prefs", Context.MODE_PRIVATE)
-                val token = prefs.getString("token_jwt", null) // 💡 CORRECCIÓN
+                val token = prefs.getString("token_jwt", null)
 
                 if (token != null) {
                     val headerToken = "Bearer $token"
@@ -446,8 +507,6 @@ class AuthViewModel : ViewModel() {
         }
     }
 
-
-
     fun registrarAlertaNotificacion(
         context: Context,
         titulo: String,
@@ -455,49 +514,59 @@ class AuthViewModel : ViewModel() {
         fechaMovimiento: String
     ) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            try {
+                val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
-            // Calculamos la fecha del movimiento menos 2 días
-            val fechaAlerta = LocalDate.parse(fechaMovimiento).minusDays(2)
-            val milisegundosAlerta = fechaAlerta.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                val fechaAlerta = LocalDate.parse(fechaMovimiento).minusDays(2)
 
-            // Intención que despertará un receptor de eventos personalizado (BroadcastReceiver)
-            val intent = Intent(context, MiNotificacionReceiver::class.java).apply {
-                putExtra("ALERTA_TITULO", titulo)
-                putExtra("ALERTA_MENSAJE", mensaje)
+                val milisegundosAlerta = fechaAlerta.atTime(9, 0)
+                    .atZone(ZoneId.systemDefault())
+                    .toInstant()
+                    .toEpochMilli()
+
+                if (milisegundosAlerta <= System.currentTimeMillis()) {
+                    Log.d("ZENIT_DEBUG", "Aviso: La notificación calculada ya ha pasado en el tiempo, no se agenda.")
+                    return
+                }
+
+                val intent = Intent(context, MiNotificacionReceiver::class.java).apply {
+                    putExtra("ALERTA_TITULO", titulo)
+                    putExtra("ALERTA_MENSAJE", mensaje)
+                }
+
+                val pendingIntent = PendingIntent.getBroadcast(
+                    context,
+                    fechaMovimiento.hashCode(),
+                    intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+
+                alarmManager.setExactAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    milisegundosAlerta,
+                    pendingIntent
+                )
+                Log.d("ZENIT_DEBUG", "Alarma ZenitApp programada con éxito para el milisegundo: $milisegundosAlerta")
+
+            } catch (e: Exception) {
+                Log.e("ZENIT_DEBUG", "Error de conversión temporal en registrarAlertaNotificacion: ${e.message}")
             }
-
-            val pendingIntent = PendingIntent.getBroadcast(
-                context,
-                fechaMovimiento.hashCode(), // ID único para que no se pisen
-                intent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-
-            // Programamos de forma exacta en el reloj del sistema operativo
-            alarmManager.setExactAndAllowWhileIdle(
-                AlarmManager.RTC_WAKEUP,
-                milisegundosAlerta,
-                pendingIntent
-            )
         }
     }
 
-    // 💡 NUEVO: Método para actualizar un movimiento existente en AWS
     fun editarMovimientoEnBBDD(
         context: Context,
-        id: Long,                  // ID del movimiento que vamos a modificar
+        id: Long,
         monto: Double,
         descripcion: String,
         tipo: String,
-        fechaElegida: String,      // YYYY-MM-DD del calendario
+        fechaElegida: String,
         categoriaId: Long,
-        onSuccess: () -> Unit      // Callback para volver a InicioScreen y refrescar
+        onSuccess: () -> Unit
     ) {
         viewModelScope.launch {
-            isLoading = true // Activa el CircularProgressIndicator del botón
+            isLoading = true
             try {
-                // 1. Recuperar el token JWT que guardaste en el Login (ej. en SharedPreferences o DataStore)
                 val sharedPreferences = context.getSharedPreferences("zenit_prefs", Context.MODE_PRIVATE)
                 val token = sharedPreferences.getString("token_jwt", null)
 
@@ -507,8 +576,7 @@ class AuthViewModel : ViewModel() {
                     return@launch
                 }
 
-                // 2. Preparar el objeto con los datos modificados (Tu DTO de la app)
-                val movimientoEditado = SolicitudTransaccion( // Ajusta el nombre a tu clase modelo (ej. SolicitudMovimiento o TransaccionRequest)
+                val movimientoEditado = SolicitudTransaccion(
                     monto = monto,
                     descripcion = descripcion,
                     tipo = tipo,
@@ -516,8 +584,6 @@ class AuthViewModel : ViewModel() {
                     categoriaId = categoriaId
                 )
 
-                // 3. Lanzar la petición HTTP PUT al backend de AWS
-                // NOTA: Ajusta "tuApiRetrofit" al nombre que tenga tu cliente de red en el ViewModel
                 val respuesta = RetrofitClient.instancia.editarTransaccion(
                     token = "Bearer $token",
                     id = id,
@@ -526,7 +592,7 @@ class AuthViewModel : ViewModel() {
 
                 if (respuesta.isSuccessful) {
                     Log.d("ZENIT_DEBUG", "¡Movimiento actualizado con éxito en AWS!")
-                    onSuccess() // Ejecuta el refresco de pantalla
+                    onSuccess()
                 } else {
                     Log.e("ZENIT_DEBUG", "Fallo en el servidor: ${respuesta.code()} - ${respuesta.errorBody()?.string()}")
                     Toast.makeText(context, "No se pudo actualizar el movimiento", Toast.LENGTH_SHORT).show()
@@ -536,11 +602,59 @@ class AuthViewModel : ViewModel() {
                 Log.e("ZENIT_DEBUG", "Error de red al editar: ${e.localizedMessage}")
                 Toast.makeText(context, "Error de conexión con el servidor", Toast.LENGTH_SHORT).show()
             } finally {
-                isLoading = false // Apaga el cargando del botón
+                isLoading = false
             }
         }
     }
+    fun editarMetaEnBBDD(
+        context: Context,
+        id: Long,
+        name: String,
+        objetivo: Double,
+        ahorrado: Double,
+        fechaLimite: String?,
+        onSuccess: () -> Unit
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val prefs = context.getSharedPreferences("zenit_prefs", Context.MODE_PRIVATE)
+                val token = prefs.getString("token_jwt", null)
 
+                if (token != null) {
+                    val datosModificados = SolicitudMeta(name, objetivo, ahorrado, fechaLimite)
+                    val respuesta = RetrofitClient.instancia.editarMeta("Bearer $token", id, datosModificados)
+                    if (respuesta.isSuccessful) {
+                        withContext(Dispatchers.Main) { onSuccess() }
+                    }
+                }
+            } catch (e: Exception) { Log.e("ZENIT_DEBUG", "Error al editar meta: ${e.message}") }
+        }
+    }
+
+    fun editarPresupuestoEnBBDD(
+        context: Context,
+        id: Long,
+        montoLimite: Double,
+        categoriaId: Long,
+        mes: Int,
+        anio: Int,
+        onSuccess: () -> Unit
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val prefs = context.getSharedPreferences("zenit_prefs", Context.MODE_PRIVATE)
+                val token = prefs.getString("token_jwt", null)
+
+                if (token != null) {
+                    val datosModificados = SolicitudPresupuesto(montoLimite, categoriaId, mes, anio)
+                    val respuesta = RetrofitClient.instancia.editarPresupuesto("Bearer $token", id, datosModificados)
+                    if (respuesta.isSuccessful) {
+                        withContext(Dispatchers.Main) { onSuccess() }
+                    }
+                }
+            } catch (e: Exception) { Log.e("ZENIT_DEBUG", "Error al editar presupuesto: ${e.message}") }
+        }
+    }
     fun eliminarPresupuestoBBDD(context: Context, idPresupuesto: Long, onSuccess: () -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
             withContext(Dispatchers.Main) { isLoading = true }
@@ -550,18 +664,19 @@ class AuthViewModel : ViewModel() {
 
                 if (token != null) {
                     val headerToken = "Bearer $token"
-                    // Recuerda que en tu ZenitApiService el endpoint se llama borrarMeta/borrarPresupuesto (ajusta el nombre si fuera necesario)
-                    val respuesta = RetrofitClient.instancia.borrarMeta(headerToken, idPresupuesto) // Si comparten pasarela o implementa tu endpoint en ApiService
+                    val respuesta = RetrofitClient.instancia.borrarPresupuesto(headerToken, idPresupuesto)
 
                     if (respuesta.isSuccessful) {
                         withContext(Dispatchers.Main) {
                             obtenerObjetivosBBDD(context)
                             onSuccess()
                         }
+                    } else {
+                        Log.e("AuthViewModel", "El servidor Ktor rechazó el borrado: ${respuesta.code()}")
                     }
                 }
             } catch (e: Exception) {
-                Log.e("AuthViewModel", "Error al borrar presupuesto: ${e.message}")
+                Log.e("AuthViewModel", "Error de red al borrar presupuesto: ${e.message}")
             } finally {
                 withContext(Dispatchers.Main) { isLoading = false }
             }
@@ -588,6 +703,44 @@ class AuthViewModel : ViewModel() {
                 }
             } catch (e: Exception) {
                 Log.e("AuthViewModel", "Error al borrar meta: ${e.message}")
+            } finally {
+                withContext(Dispatchers.Main) { isLoading = false }
+            }
+        }
+    }
+
+    fun guardarRecordatorioFuturoBBDD(
+        context: Context,
+        monto: Double,
+        descripcion: String,
+        tipo: String,
+        fechaElegida: String,
+        categoriaId: Long,
+        onSuccess: () -> Unit
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            withContext(Dispatchers.Main) { isLoading = true }
+            try {
+                val prefs = context.getSharedPreferences("zenit_prefs", Context.MODE_PRIVATE)
+                val token = prefs.getString("token_jwt", null)
+
+                if (token != null) {
+                    val headerToken = "Bearer $token"
+                    val nuevoRecordatorio = SolicitudTransaccion(
+                        monto = monto,
+                        descripcion = descripcion,
+                        tipo = tipo,
+                        fecha = fechaElegida,
+                        categoriaId = categoriaId
+                    )
+
+                    val respuesta = RetrofitClient.instancia.guardarRecordatorioFuturo(headerToken, nuevoRecordatorio)
+                    if (respuesta.isSuccessful) {
+                        withContext(Dispatchers.Main) { onSuccess() }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("ZENIT_DEBUG", "Error al guardar transacción futura en AWS: ${e.message}")
             } finally {
                 withContext(Dispatchers.Main) { isLoading = false }
             }
